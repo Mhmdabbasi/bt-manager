@@ -56,7 +56,7 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
   }finally{setProductLoading(false)}
  }
 
- useEffect(()=>{void reloadData()},[]);
+ useEffect(()=>{void reloadData()},[profiles,servers]);
 
  const selectedProduct=products.find(item=>String(item.id)===saleProductID);
  const maxQuantity=selectedProduct?Math.min(200,selectedProduct.stockCount):0;
