@@ -7,7 +7,8 @@ export function setBootstrapDirection(direction: 'ltr' | 'rtl'): void {
     link = document.createElement('link');
     link.id = 'bootstrap-direction-css';
     link.rel = 'stylesheet';
-    document.head.appendChild(link);
+    // Load Bootstrap before the application stylesheet so our design tokens and component rules win.
+    document.head.insertBefore(link, document.head.firstChild);
   }
   link.href = direction === 'rtl' ? bootstrapRTL : bootstrapLTR;
 }
