@@ -37,6 +37,7 @@ type HotSpotServer struct {
 }
 
 type HotSpotProfile struct {
+	ID             string `json:"id"`
 	Name           string `json:"name"`
 	RateLimit      string `json:"rateLimit"`
 	SharedUsers    string `json:"sharedUsers"`
@@ -76,7 +77,7 @@ func HotSpotSnapshot(ctx context.Context, request TestRequest) (HotSpotOverview,
 	if err != nil {
 		return HotSpotOverview{}, fmt.Errorf("read HotSpot servers: %w", err)
 	}
-	profiles, err := readRows(ctx, api, "/ip/hotspot/user/profile/print", "name,rate-limit,shared-users,session-timeout,idle-timeout")
+	profiles, err := readRows(ctx, api, "/ip/hotspot/user/profile/print", ".id,name,rate-limit,shared-users,session-timeout,idle-timeout")
 	if err != nil {
 		return HotSpotOverview{}, fmt.Errorf("read HotSpot profiles: %w", err)
 	}
@@ -110,7 +111,7 @@ func HotSpotSnapshot(ctx context.Context, request TestRequest) (HotSpotOverview,
 	}
 	for _, row := range previewRows(profiles) {
 		result.Profiles = append(result.Profiles, HotSpotProfile{
-			Name: row["name"], RateLimit: row["rate-limit"], SharedUsers: row["shared-users"],
+			ID: row[".id"], Name: row["name"], RateLimit: row["rate-limit"], SharedUsers: row["shared-users"],
 			SessionTimeout: row["session-timeout"], IdleTimeout: row["idle-timeout"],
 		})
 	}
