@@ -24,6 +24,7 @@ type VoucherProduct struct {
 	Name        string `json:"name"`
 	ProfileName string `json:"profileName"`
 	ServerName  string `json:"serverName"`
+	LimitUptime string `json:"limitUptime"`
 	PriceMinor  int64  `json:"priceMinor"`
 	Active      bool   `json:"active"`
 	StockCount  int    `json:"stockCount"`
@@ -35,6 +36,7 @@ type VoucherProductInput struct {
 	Name        string
 	ProfileName string
 	ServerName  string
+	LimitUptime string
 	PriceMinor  int64
 	Active      bool
 }
@@ -56,6 +58,7 @@ type POSSaleItem struct {
 	ProductName    string `json:"productName"`
 	ProfileName    string `json:"profileName"`
 	ServerName     string `json:"serverName"`
+	LimitUptime    string `json:"limitUptime"`
 	UnitPriceMinor int64  `json:"unitPriceMinor"`
 	CurrencyCode   string `json:"currencyCode"`
 }
@@ -70,8 +73,8 @@ func (db *DB) CreateVoucherProduct(ctx context.Context, input VoucherProductInpu
 	if err != nil {
 		return VoucherProduct{}, err
 	}
-	result, err := db.ExecContext(ctx, `INSERT INTO voucher_products(name,profile_name,server_name,price_minor,active) VALUES(?,?,?,?,?)`,
-		input.Name, input.ProfileName, input.ServerName, input.PriceMinor, boolInt(input.Active))
+	result, err := db.ExecContext(ctx, `INSERT INTO voucher_products(name,profile_name,server_name,limit_uptime,price_minor,active) VALUES(?,?,?,?,?,?)`,
+		input.Name, input.ProfileName, input.ServerName, input.LimitUptime, input.PriceMinor, boolInt(input.Active))
 	if err != nil {
 		return VoucherProduct{}, fmt.Errorf("create voucher product: %w", err)
 	}
@@ -90,9 +93,9 @@ func (db *DB) UpdateVoucherProduct(ctx context.Context, id int64, input VoucherP
 	if err != nil {
 		return VoucherProduct{}, err
 	}
-	result, err := db.ExecContext(ctx, `UPDATE voucher_products SET name=?,profile_name=?,server_name=?,price_minor=?,active=?,
+	result, err := db.ExecContext(ctx, `UPDATE voucher_products SET name=?,profile_name=?,server_name=?,limit_uptime=?,price_minor=?,active=?,
 		updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`,
-		input.Name, input.ProfileName, input.ServerName, input.PriceMinor, boolInt(input.Active), id)
+		input.Name, input.ProfileName, input.ServerName, input.LimitUptime, input.PriceMinor, boolInt(input.Active), id)
 	if err != nil {
 		return VoucherProduct{}, fmt.Errorf("update voucher product: %w", err)
 	}
@@ -109,10 +112,10 @@ func (db *DB) UpdateVoucherProduct(ctx context.Context, id int64, input VoucherP
 func (db *DB) GetVoucherProduct(ctx context.Context, id int64) (VoucherProduct, error) {
 	var product VoucherProduct
 	var active int
-	err := db.QueryRowContext(ctx, `SELECT p.id,p.name,p.profile_name,p.server_name,p.price_minor,p.active,
-		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.status='available'),
+	err := db.QueryRowContext(ctx, `SELECT p.id,p.name,p.profile_name,p.server_name,p.limit_uptime,p.price_minor,p.active,
+		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.limit_uptime=p.limit_uptime AND v.status='available'),
 		p.created_at,p.updated_at FROM voucher_products p WHERE p.id=?`, id).
-		Scan(&product.ID, &product.Name, &product.ProfileName, &product.ServerName, &product.PriceMinor, &active,
+		Scan(&product.ID, &product.Name, &product.ProfileName, &product.ServerName, &product.LimitUptime, &product.PriceMinor, &active,
 			&product.StockCount, &product.CreatedAt, &product.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return VoucherProduct{}, ErrVoucherProductNotFound
@@ -122,8 +125,8 @@ func (db *DB) GetVoucherProduct(ctx context.Context, id int64) (VoucherProduct, 
 }
 
 func (db *DB) ListVoucherProducts(ctx context.Context, includeInactive bool) ([]VoucherProduct, error) {
-	query := `SELECT p.id,p.name,p.profile_name,p.server_name,p.price_minor,p.active,
-		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.status='available'),
+	query := `SELECT p.id,p.name,p.profile_name,p.server_name,p.limit_uptime,p.price_minor,p.active,
+		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.limit_uptime=p.limit_uptime AND v.status='available'),
 		p.created_at,p.updated_at FROM voucher_products p`
 	if !includeInactive {
 		query += " WHERE p.active=1"
@@ -138,7 +141,7 @@ func (db *DB) ListVoucherProducts(ctx context.Context, includeInactive bool) ([]
 	for rows.Next() {
 		var product VoucherProduct
 		var active int
-		if err := rows.Scan(&product.ID, &product.Name, &product.ProfileName, &product.ServerName, &product.PriceMinor,
+		if err := rows.Scan(&product.ID, &product.Name, &product.ProfileName, &product.ServerName, &product.LimitUptime, &product.PriceMinor,
 			&active, &product.StockCount, &product.CreatedAt, &product.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -189,11 +192,11 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 	if err := tx.QueryRowContext(ctx, `SELECT value FROM app_settings WHERE key='currency_code'`).Scan(&currency); err != nil {
 		return POSSaleResult{}, err
 	}
-	var productName, profileName, serverName string
+	var productName, profileName, serverName, limitUptime string
 	var priceMinor int64
 	var active int
-	if err := tx.QueryRowContext(ctx, `SELECT name,profile_name,server_name,price_minor,active FROM voucher_products WHERE id=?`, productID).
-		Scan(&productName, &profileName, &serverName, &priceMinor, &active); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT name,profile_name,server_name,limit_uptime,price_minor,active FROM voucher_products WHERE id=?`, productID).
+		Scan(&productName, &profileName, &serverName, &limitUptime, &priceMinor, &active); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return POSSaleResult{}, ErrVoucherProductNotFound
 		}
@@ -208,7 +211,7 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 	}
 
 	rows, err := tx.QueryContext(ctx, `SELECT id,username FROM vouchers
-		WHERE profile_name=? AND server_name=? AND status='available' ORDER BY id LIMIT ?`, profileName, serverName, quantity)
+		WHERE profile_name=? AND server_name=? AND limit_uptime=? AND status='available' ORDER BY id LIMIT ?`, profileName, serverName, limitUptime, quantity)
 	if err != nil {
 		return POSSaleResult{}, err
 	}
@@ -248,8 +251,8 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 	items := make([]POSSaleItem, 0, len(selected))
 	for _, voucher := range selected {
 		itemResult, err := tx.ExecContext(ctx, `INSERT INTO pos_sale_items
-			(sale_id,voucher_id,product_id,product_name,profile_name,server_name,unit_price_minor,currency_code)
-			VALUES(?,?,?,?,?,?,?,?)`, saleID, voucher.id, productID, productName, profileName, serverName, priceMinor, currency)
+			(sale_id,voucher_id,product_id,product_name,profile_name,server_name,limit_uptime,unit_price_minor,currency_code)
+			VALUES(?,?,?,?,?,?,?,?,?)`, saleID, voucher.id, productID, productName, profileName, serverName, limitUptime, priceMinor, currency)
 		if err != nil {
 			return POSSaleResult{}, fmt.Errorf("record POS sale item: %w", err)
 		}
@@ -271,7 +274,7 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 		}
 		items = append(items, POSSaleItem{
 			ID: itemID, VoucherID: voucher.id, Username: voucher.username,
-			ProductID: productID, ProductName: productName, ProfileName: profileName, ServerName: serverName,
+			ProductID: productID, ProductName: productName, ProfileName: profileName, ServerName: serverName, LimitUptime: limitUptime,
 			UnitPriceMinor: priceMinor, CurrencyCode: currency,
 		})
 	}
@@ -323,7 +326,7 @@ func (db *DB) GetPOSSale(ctx context.Context, id int64) (POSSaleResult, error) {
 	if err != nil {
 		return POSSaleResult{}, err
 	}
-	rows, err := db.QueryContext(ctx, `SELECT i.id,i.voucher_id,v.username,i.product_id,i.product_name,i.profile_name,i.server_name,i.unit_price_minor,i.currency_code
+	rows, err := db.QueryContext(ctx, `SELECT i.id,i.voucher_id,v.username,i.product_id,i.product_name,i.profile_name,i.server_name,i.limit_uptime,i.unit_price_minor,i.currency_code
 		FROM pos_sale_items i JOIN vouchers v ON v.id=i.voucher_id WHERE i.sale_id=? ORDER BY i.id`, id)
 	if err != nil {
 		return POSSaleResult{}, err
@@ -333,7 +336,7 @@ func (db *DB) GetPOSSale(ctx context.Context, id int64) (POSSaleResult, error) {
 	for rows.Next() {
 		var item POSSaleItem
 		if err := rows.Scan(&item.ID, &item.VoucherID, &item.Username, &item.ProductID, &item.ProductName,
-			&item.ProfileName, &item.ServerName, &item.UnitPriceMinor, &item.CurrencyCode); err != nil {
+			&item.ProfileName, &item.ServerName, &item.LimitUptime, &item.UnitPriceMinor, &item.CurrencyCode); err != nil {
 			return POSSaleResult{}, err
 		}
 		result.Items = append(result.Items, item)
@@ -348,11 +351,12 @@ func normalizeVoucherProduct(input VoucherProductInput) (VoucherProductInput, er
 	input.Name = strings.TrimSpace(input.Name)
 	input.ProfileName = strings.TrimSpace(input.ProfileName)
 	input.ServerName = strings.TrimSpace(input.ServerName)
+	input.LimitUptime = strings.TrimSpace(input.LimitUptime)
 	if input.ServerName == "" { input.ServerName = "all" }
 	if input.Name == "" || input.ProfileName == "" || len([]rune(input.Name)) > 80 ||
-		len([]rune(input.ProfileName)) > 64 || len([]rune(input.ServerName)) > 64 || input.ServerName == "" || input.PriceMinor < 1 ||
+		len([]rune(input.ProfileName)) > 64 || len([]rune(input.ServerName)) > 64 || input.ServerName == "" || len([]rune(input.LimitUptime)) > 64 || input.PriceMinor < 1 ||
 		input.PriceMinor > MaxVoucherProductPriceMinor || hasControlCharacters(input.Name) ||
-		hasControlCharacters(input.ProfileName) || hasControlCharacters(input.ServerName) {
+		hasControlCharacters(input.ProfileName) || hasControlCharacters(input.ServerName) || hasControlCharacters(input.LimitUptime) {
 		return VoucherProductInput{}, ErrInvalidPOSSale
 	}
 	return input, nil
