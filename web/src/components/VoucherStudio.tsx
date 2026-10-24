@@ -4,6 +4,8 @@ import type {HotSpotProfile,HotSpotServer,Voucher,VoucherBatch,VoucherBatchResul
 
 type RouterConnection={address:string;port:number;username:string;password:string;useTls:boolean};
 type FlashKind='success'|'danger';
+type CharsetMode='alphanumeric'|'letters'|'numbers';
+type PasswordMode='none'|'same'|'random';
 type Props={
  router:RouterConnection;
  profiles:HotSpotProfile[];
@@ -32,6 +34,7 @@ function VoucherCard({voucher,title,note,accent,background}:{voucher:Voucher;tit
   <div className="voucher-card-head"><strong>{title||'HotSpot'}</strong><span>INTERNET ACCESS</span></div>
   <div className="voucher-code-label">اسم المستخدم / رمز الدخول</div>
   <div className="voucher-code" dir="ltr">{voucher.username}</div>
+  {voucher.password&&<><div className="voucher-code-label">كلمة المرور</div><div className="voucher-code" dir="ltr">{voucher.password}</div></>}
   <div className="voucher-card-meta"><span>{voucher.profileName}</span>{voucher.limitUptime&&<span>الوقت: {voucher.limitUptime}</span>}</div>
   {note&&<div className="voucher-card-note">{note}</div>}
  </article>;
@@ -40,6 +43,11 @@ function VoucherCard({voucher,title,note,accent,background}:{voucher:Voucher;tit
 export default function VoucherStudio({router,profiles,servers,businessName,onRefresh,onMessage}:Props){
  const [prefix,setPrefix]=useState('');
  const [count,setCount]=useState(60);
+ const [usernameLength,setUsernameLength]=useState(8);
+ const [usernameMode,setUsernameMode]=useState<CharsetMode>('alphanumeric');
+ const [passwordMode,setPasswordMode]=useState<PasswordMode>('none');
+ const [passwordLength,setPasswordLength]=useState(4);
+ const [passwordCharset,setPasswordCharset]=useState<CharsetMode>('alphanumeric');
  const [profile,setProfile]=useState('');
  const [server,setServer]=useState('all');
  const [limitUptime,setLimitUptime]=useState('');
@@ -74,7 +82,7 @@ export default function VoucherStudio({router,profiles,servers,businessName,onRe
   }
   setGenerating(true);
   try{
-   const result=await api.generateVouchers({router,prefix,count,profile,server,limitUptime});
+   const result=await api.generateVouchers({router,prefix,count,profile,server,limitUptime,usernameLength,usernameMode,passwordMode,passwordLength,passwordCharset});
    setSelected(result);
    setBatches(old=>[result.batch,...old.filter(batch=>batch.id!==result.batch.id)]);
    if(result.batch.failedCount>0||Boolean(result.untrackedUsernames?.length)){
@@ -119,13 +127,17 @@ export default function VoucherStudio({router,profiles,servers,businessName,onRe
   <form className="hotspot-editor" onSubmit={generate}>
    <h4>إنشاء دفعة جديدة</h4>
    <div className="row g-3">
-    <div className="col-md-4"><label className="form-label" htmlFor="voucherPrefix">بادئة اسم المستخدم (اختيارية)</label><input id="voucherPrefix" className="form-control ltr-input" value={prefix} onChange={event=>setPrefix(event.target.value)} maxLength={32} pattern="[A-Za-z0-9_-]*" placeholder="BT-"/><div className="form-hint">تُضاف بعدها 8 خانات عشوائية.</div></div>
-    <div className="col-md-4"><label className="form-label" htmlFor="voucherCount">عدد القسائم</label><select id="voucherCount" className="form-select form-control" value={count} onChange={event=>setCount(Number(event.target.value))}>{[15,30,45,60,90,120,150,200].map(number=><option key={number} value={number}>{number} قسيمة</option>)}</select><div className="form-hint">الحد الأقصى 200 قسيمة لكل دفعة.</div></div>
+    <div className="col-md-4"><label className="form-label" htmlFor="voucherCount">عدد الحسابات</label><input id="voucherCount" className="form-control ltr-input" type="number" min={1} max={200} step={1} value={count} onChange={event=>setCount(Math.max(1,Math.min(200,Number(event.target.value)||1)))} required/><div className="form-hint">من 1 إلى 200 حساب في الدفعة الواحدة.</div></div>
+    <div className="col-md-4"><label className="form-label" htmlFor="voucherPrefix">بادئة اسم المستخدم (اختيارية)</label><input id="voucherPrefix" className="form-control ltr-input" value={prefix} onChange={event=>setPrefix(event.target.value)} maxLength={32} pattern="[A-Za-z0-9_-]*" placeholder="BT-"/><div className="form-hint">تُضاف البادئة قبل الرمز العشوائي.</div></div>
     <div className="col-md-4"><label className="form-label" htmlFor="voucherProfile">الملف التعريفي</label><select id="voucherProfile" className="form-select form-control" value={profile} onChange={event=>setProfile(event.target.value)} required>{profiles.map(item=><option key={item.id||item.name} value={item.name}>{item.name}</option>)}</select></div>
-    <div className="col-md-6"><label className="form-label" htmlFor="voucherServer">خادم HotSpot</label><select id="voucherServer" className="form-select form-control" value={server} onChange={event=>setServer(event.target.value)}><option value="all">كل الخوادم (all)</option>{servers.filter(item=>!item.disabled).map(item=><option key={item.name} value={item.name}>{item.name}</option>)}</select><div className="form-hint">اتركه على all لتطبيق الحساب على خوادم HotSpot المناسبة.</div></div>
+    <div className="col-md-4"><label className="form-label" htmlFor="voucherUsernameLength">طول رمز الدخول</label><input id="voucherUsernameLength" className="form-control ltr-input" type="number" min={4} max={32} step={1} value={usernameLength} onChange={event=>setUsernameLength(Math.max(4,Math.min(32,Number(event.target.value)||4)))} required/><div className="form-hint">عدد المحارف، من 4 إلى 32.</div></div>
+    <div className="col-md-4"><label className="form-label" htmlFor="voucherUsernameMode">نوع رمز الدخول</label><select id="voucherUsernameMode" className="form-select form-control" value={usernameMode} onChange={event=>setUsernameMode(event.target.value as CharsetMode)}><option value="alphanumeric">حروف وأرقام</option><option value="letters">حروف فقط</option><option value="numbers">أرقام فقط</option></select></div>
+    <div className="col-md-4"><label className="form-label" htmlFor="voucherServer">خادم HotSpot</label><select id="voucherServer" className="form-select form-control" value={server} onChange={event=>setServer(event.target.value)}><option value="all">كل الخوادم (all)</option>{servers.filter(item=>!item.disabled).map(item=><option key={item.name} value={item.name}>{item.name}</option>)}</select></div>
     <div className="col-md-6"><label className="form-label" htmlFor="voucherLimit">حد الاستخدام الزمني (اختياري)</label><input id="voucherLimit" className="form-control ltr-input" value={limitUptime} onChange={event=>setLimitUptime(event.target.value)} maxLength={64} placeholder="مثال: 1d00:00:00"/></div>
+    <div className="col-md-6"><label className="form-label" htmlFor="voucherPasswordMode">كلمة المرور</label><select id="voucherPasswordMode" className="form-select form-control" value={passwordMode} onChange={event=>setPasswordMode(event.target.value as PasswordMode)}><option value="none">بدون كلمة مرور (اسم المستخدم فقط)</option><option value="same">كلمة المرور مطابقة لاسم المستخدم</option><option value="random">كلمة مرور عشوائية منفصلة</option></select></div>
+    {passwordMode==='random'&&<><div className="col-md-6"><label className="form-label" htmlFor="voucherPasswordLength">طول كلمة المرور</label><input id="voucherPasswordLength" className="form-control ltr-input" type="number" min={4} max={32} value={passwordLength} onChange={event=>setPasswordLength(Math.max(4,Math.min(32,Number(event.target.value)||4)))}/></div><div className="col-md-6"><label className="form-label" htmlFor="voucherPasswordCharset">نوع محارف كلمة المرور</label><select id="voucherPasswordCharset" className="form-select form-control" value={passwordCharset} onChange={event=>setPasswordCharset(event.target.value as CharsetMode)}><option value="alphanumeric">حروف وأرقام</option><option value="letters">حروف فقط</option><option value="numbers">أرقام فقط</option></select></div></>}
    </div>
-   <div className="helper-box mt-3"><i className="bi bi-shield-check"/><span>سيُنشأ كل حساب دون خاصية كلمة المرور، بما يوافق طريقة تسجيل الدخول باستخدام اسم المستخدم فقط. قد تتوقف الدفعة عند أول رفض من الراوتر؛ وستُحفظ الحسابات التي أُنشئت بالفعل فقط.</span></div>
+   <div className="helper-box mt-3"><i className="bi bi-shield-check"/><span>{passwordMode==='none'?'سيُنشأ كل حساب دون كلمة مرور، بما يوافق طريقة تسجيل الدخول باسم المستخدم فقط.':passwordMode==='same'?'سيُستخدم اسم المستخدم نفسه ككلمة مرور لكل حساب.':'سيُنشئ التطبيق كلمة مرور عشوائية منفصلة، ويحتفظ بها محليًا لطباعتها ضمن الكرت.'} الرموز تُولّد عشوائيًا بمصدر آمن، والحروف المتشابهة بصريًا مستبعدة من خيارات الرموز. قد تتوقف الدفعة عند أول رفض من الراوتر؛ وستُحفظ الحسابات التي أُنشئت بالفعل فقط.</span></div>
    <button type="submit" className="btn btn-primary mt-2" disabled={generating||!profiles.length}>{generating?'جارٍ إنشاء القسائم على الراوتر...':'إنشاء دفعة القسائم'}</button>
   </form>
 
@@ -133,7 +145,7 @@ export default function VoucherStudio({router,profiles,servers,businessName,onRe
    <label className="form-label" htmlFor="voucherBatchHistory">الدفعات السابقة</label>
    <select id="voucherBatchHistory" className="form-select form-control" value={selected?.batch.id??''} onChange={event=>void chooseBatch(event.target.value)} disabled={loadingBatch}>
     <option value="">اختر دفعة لعرضها وطباعتها</option>
-    {batches.map(batch=><option key={batch.id} value={batch.id}>{batch.reference} — {batch.createdCount}/{batch.requestedCount} — {batch.status}</option>)}
+    {batches.map(batch=><option key={batch.id} value={batch.id}>{batch.reference} — {batch.createdCount}/{batch.requestedCount} — {batch.usernameLength} محارف — {batch.status}</option>)}
    </select>
   </div>}
 
