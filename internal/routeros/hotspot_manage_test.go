@@ -2,6 +2,7 @@ package routerosadapter
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -67,5 +68,30 @@ func TestValidRouterOSID(t *testing.T) {
 		if validRouterOSID(id) {
 			t.Errorf("validRouterOSID(%q) = true", id)
 		}
+	}
+}
+
+func TestHotSpotUserCreateArgsOmitBlankPassword(t *testing.T) {
+	args := hotSpotUserCreateArgs(HotSpotUserInput{Name: "voucher-100", Profile: "default", Server: "all"})
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "=password=") {
+			t.Fatalf("blank password should be omitted from RouterOS arguments, got %q", arg)
+		}
+	}
+	if len(args) == 0 || args[0] != "=name=voucher-100" {
+		t.Fatalf("expected username argument, got %#v", args)
+	}
+}
+
+func TestHotSpotUserCreateArgsIncludeProvidedPassword(t *testing.T) {
+	args := hotSpotUserCreateArgs(HotSpotUserInput{Name: "voucher-100", Password: "secret"})
+	found := false
+	for _, arg := range args {
+		if arg == "=password=secret" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("provided password was not added to RouterOS arguments: %#v", args)
 	}
 }
