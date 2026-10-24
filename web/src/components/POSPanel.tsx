@@ -109,7 +109,7 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
   }
   setSelling(true);
   try{
-   const result=await api.createPOSSale({requestId,productId:selectedProduct.id,quantity,paymentMethod});
+   const result=await api.createPOSSale({requestId:requestID,productId:selectedProduct.id,quantity,paymentMethod});
    setReceipt(result);
    setRequestID(makeRequestID());
    onMessage('success','تم تسجيل البيع '+result.sale.reference+' وإخراج '+result.items.length+' كرت.');
