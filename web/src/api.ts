@@ -1,7 +1,16 @@
 import type {AppSettings,HealthResponse,RouterInfo} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
- const response=await fetch(url,{...init,headers});const payload=await response.json().catch(()=>({}));
+ let response:Response;
+ try {
+  response=await fetch(url,{...init,headers});
+ } catch(error) {
+  if(error instanceof DOMException && error.name==='TimeoutError') {
+   throw new Error('انتهت مهلة الطلب. تحقق من اتصال الراوتر وتفعيل خدمة RouterOS API ثم أعد المحاولة.');
+  }
+  throw new Error('تعذر الوصول إلى الخادم المحلي. تأكد من أن bt-manager يعمل ثم أعد المحاولة.');
+ }
+ const payload=await response.json().catch(()=>({}));
  if(!response.ok)throw new Error(payload?.error?.message??`فشل الطلب (${response.status})`);
  return payload as T;
 }
@@ -9,5 +18,5 @@ export const api={
  health:()=>request<HealthResponse>('/api/health'),
  settings:()=>request<AppSettings>('/api/settings'),
  saveSettings:(s:AppSettings)=>request<AppSettings>('/api/settings',{method:'PUT',body:JSON.stringify(s)}),
- testRouter:(v:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<{status:string;router:RouterInfo}>('/api/router/test',{method:'POST',body:JSON.stringify(v)}),
+ testRouter:(v:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<{status:string;router:RouterInfo}>('/api/router/test',{method:'POST',body:JSON.stringify(v),signal:AbortSignal.timeout(15000)}),
 };
