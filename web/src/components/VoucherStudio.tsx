@@ -1,12 +1,13 @@
 import {useEffect,useMemo,useState,type CSSProperties,type ChangeEvent,type FormEvent} from 'react';
 import {api} from '../api';
-import type {HotSpotProfile,Voucher,VoucherBatch,VoucherBatchResult} from '../types';
+import type {HotSpotProfile,HotSpotServer,Voucher,VoucherBatch,VoucherBatchResult} from '../types';
 
 type RouterConnection={address:string;port:number;username:string;password:string;useTls:boolean};
 type FlashKind='success'|'danger';
 type Props={
  router:RouterConnection;
  profiles:HotSpotProfile[];
+ servers:HotSpotServer[];
  businessName:string;
  onRefresh:()=>Promise<void>;
  onMessage:(kind:FlashKind,message:string)=>void;
@@ -36,7 +37,7 @@ function VoucherCard({voucher,title,note,accent,background}:{voucher:Voucher;tit
  </article>;
 }
 
-export default function VoucherStudio({router,profiles,businessName,onRefresh,onMessage}:Props){
+export default function VoucherStudio({router,profiles,servers,businessName,onRefresh,onMessage}:Props){
  const [prefix,setPrefix]=useState('');
  const [count,setCount]=useState(60);
  const [profile,setProfile]=useState('');
@@ -121,7 +122,7 @@ export default function VoucherStudio({router,profiles,businessName,onRefresh,on
     <div className="col-md-4"><label className="form-label" htmlFor="voucherPrefix">بادئة اسم المستخدم (اختيارية)</label><input id="voucherPrefix" className="form-control ltr-input" value={prefix} onChange={event=>setPrefix(event.target.value)} maxLength={32} pattern="[A-Za-z0-9_-]*" placeholder="BT-"/><div className="form-hint">تُضاف بعدها 8 خانات عشوائية.</div></div>
     <div className="col-md-4"><label className="form-label" htmlFor="voucherCount">عدد القسائم</label><select id="voucherCount" className="form-select form-control" value={count} onChange={event=>setCount(Number(event.target.value))}>{[15,30,45,60,90,120,150,200].map(number=><option key={number} value={number}>{number} قسيمة</option>)}</select><div className="form-hint">الحد الأقصى 200 قسيمة لكل دفعة.</div></div>
     <div className="col-md-4"><label className="form-label" htmlFor="voucherProfile">الملف التعريفي</label><select id="voucherProfile" className="form-select form-control" value={profile} onChange={event=>setProfile(event.target.value)} required>{profiles.map(item=><option key={item.id||item.name} value={item.name}>{item.name}</option>)}</select></div>
-    <div className="col-md-6"><label className="form-label" htmlFor="voucherServer">خادم HotSpot</label><select id="voucherServer" className="form-select form-control" value={server} onChange={event=>setServer(event.target.value)}><option value="all">كل الخوادم (all)</option>{/* specific servers are surfaced with the overview */}</select><div className="form-hint">اتركه على all لتطبيق الحساب على خوادم HotSpot المناسبة.</div></div>
+    <div className="col-md-6"><label className="form-label" htmlFor="voucherServer">خادم HotSpot</label><select id="voucherServer" className="form-select form-control" value={server} onChange={event=>setServer(event.target.value)}><option value="all">كل الخوادم (all)</option>{servers.filter(item=>!item.disabled).map(item=><option key={item.name} value={item.name}>{item.name}</option>)}</select><div className="form-hint">اتركه على all لتطبيق الحساب على خوادم HotSpot المناسبة.</div></div>
     <div className="col-md-6"><label className="form-label" htmlFor="voucherLimit">حد الاستخدام الزمني (اختياري)</label><input id="voucherLimit" className="form-control ltr-input" value={limitUptime} onChange={event=>setLimitUptime(event.target.value)} maxLength={64} placeholder="مثال: 1d00:00:00"/></div>
    </div>
    <div className="helper-box mt-3"><i className="bi bi-shield-check"/><span>سيُنشأ كل حساب دون خاصية كلمة المرور، بما يوافق طريقة تسجيل الدخول باستخدام اسم المستخدم فقط. قد تتوقف الدفعة عند أول رفض من الراوتر؛ وستُحفظ الحسابات التي أُنشئت بالفعل فقط.</span></div>
