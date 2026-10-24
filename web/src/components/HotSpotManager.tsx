@@ -28,8 +28,8 @@ export default function HotSpotManager({router,overview,onRefresh,onMessage}:Pro
   setBusy(true);
   try{
    await operation();
-   await onRefresh();
    onMessage('success',label+' بنجاح.');
+   await onRefresh();
   }catch(error){
    onMessage('danger',(error as Error).message||'تعذرت العملية.');
   }finally{setBusy(false)}
