@@ -77,13 +77,8 @@ func (db *DB) AddVoucher(ctx context.Context, batchID int64, username string) (V
 	if batchID <= 0 || username == "" {
 		return Voucher{}, errors.New("invalid voucher")
 	}
-	result, err := db.ExecContext(ctx, `INSERT INTO vouchers(batch_id,username,profile_name,server_name,limit_uptime)
-		SELECT id,?,?,?,?,? FROM voucher_batches WHERE id=? AND status='running'`,
-		username, "", "", "", batchID)
-	_ = result
-	_ = err
-	// Keep this method implemented below using a single explicit lookup; this
-	// avoids relying on nullable/default columns while preserving batch metadata.
+	// Read the batch metadata before adding a voucher so the stored card
+	// always reflects the profile/server settings used for this batch.
 	var profile, server, uptime, status string
 	if err := db.QueryRowContext(ctx, `SELECT profile_name,server_name,limit_uptime,status FROM voucher_batches WHERE id=?`, batchID).
 		Scan(&profile, &server, &uptime, &status); err != nil {
