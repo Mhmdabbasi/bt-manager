@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -173,4 +172,3 @@ func newPOSSaleReference() (string, error) {
 	return "POS-" + strings.TrimPrefix(ref, "VCH-"), nil
 }
 
-var _ = fmt.Sprintf
