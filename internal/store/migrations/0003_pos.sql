@@ -34,3 +34,5 @@ ALTER TABLE vouchers ADD COLUMN sold_at TEXT;
 CREATE INDEX IF NOT EXISTS idx_pos_sales_created ON pos_sales(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pos_sale_items_sale_id ON pos_sale_items(sale_id);
 CREATE INDEX IF NOT EXISTS idx_voucher_products_active ON voucher_products(active,profile_name);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_voucher_products_profile_unique ON voucher_products(profile_name);
