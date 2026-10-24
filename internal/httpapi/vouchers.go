@@ -27,6 +27,7 @@ type generateVouchersRequest struct {
 type generateVouchersResponse struct {
 	Batch        store.VoucherBatch `json:"batch"`
 	Vouchers     []store.Voucher    `json:"vouchers"`
+	UntrackedUsernames []string    `json:"untrackedUsernames,omitempty"`
 	ErrorMessage string             `json:"errorMessage,omitempty"`
 }
 
@@ -95,9 +96,25 @@ func (s *Server) generateVouchers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	savedNames := make(map[string]struct{}, len(vouchers))
+	for _, voucher := range vouchers {
+		savedNames[voucher.Username] = struct{}{}
+	}
+	untracked := make([]string, 0)
+	for _, created := range result.Created {
+		if _, ok := savedNames[created.Username]; !ok {
+			untracked = append(untracked, created.Username)
+		}
+	}
+	if len(untracked) > 0 && errorMessage == "" {
+		errorMessage = "تم إنشاء حسابات على الراوتر لم يتم حفظها محليًا؛ لا تطبع هذه القسائم قبل تسجيلها يدويًا."
+	}
 	s.logger.Info("HotSpot voucher batch finished", "batchReference", batch.Reference,
-		"requested", batch.RequestedCount, "created", batch.CreatedCount, "failed", batch.FailedCount)
-	writeJSON(w, http.StatusOK, generateVouchersResponse{Batch: batch, Vouchers: vouchers, ErrorMessage: errorMessage})
+		"requested", batch.RequestedCount, "created", batch.CreatedCount, "failed", batch.FailedCount,
+		"untracked", len(untracked))
+	writeJSON(w, http.StatusOK, generateVouchersResponse{
+		Batch: batch, Vouchers: vouchers, UntrackedUsernames: untracked, ErrorMessage: errorMessage,
+	})
 }
 
 func (s *Server) listVoucherBatches(w http.ResponseWriter, r *http.Request) {
