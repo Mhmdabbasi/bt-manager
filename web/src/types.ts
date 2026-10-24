@@ -59,6 +59,11 @@ export interface VoucherBatch {
   profileName: string;
   serverName: string;
   limitUptime: string;
+  usernameLength: number;
+  usernameMode: 'alphanumeric' | 'letters' | 'numbers';
+  passwordMode: 'none' | 'same' | 'random';
+  passwordLength: number;
+  passwordCharset: 'alphanumeric' | 'letters' | 'numbers';
   requestedCount: number;
   createdCount: number;
   failedCount: number;
@@ -70,6 +75,7 @@ export interface Voucher {
   id: number;
   batchId: number;
   username: string;
+  password?: string;
   profileName: string;
   serverName: string;
   limitUptime: string;
