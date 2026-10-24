@@ -77,8 +77,8 @@ export default function VoucherStudio({router,profiles,servers,businessName,onRe
    const result=await api.generateVouchers({router,prefix,count,profile,server,limitUptime});
    setSelected(result);
    setBatches(old=>[result.batch,...old.filter(batch=>batch.id!==result.batch.id)]);
-   if(result.batch.failedCount>0){
-    onMessage('danger','اكتملت الدفعة جزئيًا: أُنشئت '+result.batch.createdCount+' من '+result.batch.requestedCount+' قسيمة. '+(result.errorMessage||''));
+   if(result.batch.failedCount>0||Boolean(result.untrackedUsernames?.length)){
+    onMessage('danger','اكتملت الدفعة جزئيًا: حُفظت '+result.batch.createdCount+' من '+result.batch.requestedCount+' قسيمة محليًا. '+(result.errorMessage||''));
    }else{
     onMessage('success','تم إنشاء '+result.batch.createdCount+' قسيمة وحفظها محليًا.');
    }
@@ -147,7 +147,7 @@ export default function VoucherStudio({router,profiles,servers,businessName,onRe
     <div className="col-md-3"><label className="form-label" htmlFor="cardBackground">خلفية مخصصة</label><input id="cardBackground" className="form-control" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleBackground}/>{backgroundName&&<div className="form-hint">{backgroundName} <button type="button" className="btn btn-sm btn-link p-0" onClick={()=>{setBackground('');setBackgroundName('')}}>إزالة</button></div>}</div>
    </div>
    <div className="d-flex flex-wrap align-items-center gap-2 mt-3 no-print"><button type="button" className="btn btn-primary" disabled={!vouchers.length} onClick={()=>window.print()}><i className="bi bi-printer ms-1"/> طباعة / حفظ PDF</button><span className="small text-secondary">اختر «Save as PDF / حفظ كملف PDF» من نافذة الطباعة.</span></div>
-   {selected.batch.failedCount>0&&<div className="alert alert-warning mt-3">لم تُنشأ جميع القسائم. تمتلك هذه الدفعة {selected.batch.createdCount} حسابًا ناجحًا من أصل {selected.batch.requestedCount}. {selected.errorMessage}</div>}
+   {(selected.batch.failedCount>0||Boolean(selected.untrackedUsernames?.length))&&<div className="alert alert-warning mt-3">لم تكتمل الدفعة بالكامل. حُفظت محليًا {selected.batch.createdCount} من أصل {selected.batch.requestedCount} قسيمة. {selected.errorMessage}{selected.untrackedUsernames?.length>0&&<div className="mt-2"><b>أسماء أنشئت على الراوتر ولم تُحفظ محليًا:</b><div dir="ltr">{selected.untrackedUsernames.join(", ")}</div><small>لا تطبع هذه الرموز من الاستوديو قبل تسجيلها محليًا؛ فهي غير موجودة ضمن القسائم المحفوظة.</small></div>}</div>}
    {!!vouchers.length&&<div className="voucher-preview-wrap mt-3"><div className="small text-secondary mb-2">معاينة لأول {screenPreview.length} كروت — المعاينة للطباعة كاملة على ورق A4.</div><div className="voucher-preview-grid">{screenPreview.map(voucher=><VoucherCard key={voucher.id} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background}/>)}</div></div>}
    {!vouchers.length&&<div className="small text-secondary mt-3">لا توجد كروت ناجحة في هذه الدفعة للطباعة.</div>}
   </div>}
