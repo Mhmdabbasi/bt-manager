@@ -51,3 +51,33 @@ export interface HotSpotOverview {
   previewLimit: number;
   truncated: boolean;
 }
+
+export interface VoucherBatch {
+  id: number;
+  reference: string;
+  prefix: string;
+  profileName: string;
+  serverName: string;
+  limitUptime: string;
+  requestedCount: number;
+  createdCount: number;
+  failedCount: number;
+  status: 'running' | 'completed' | 'partial' | 'failed';
+  errorMessage?: string;
+  createdAt: string;
+}
+export interface Voucher {
+  id: number;
+  batchId: number;
+  username: string;
+  profileName: string;
+  serverName: string;
+  limitUptime: string;
+  status: 'available' | 'sold' | 'void';
+  createdAt: string;
+}
+export interface VoucherBatchResult {
+  batch: VoucherBatch;
+  vouchers: Voucher[];
+  errorMessage?: string;
+}
