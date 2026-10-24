@@ -161,7 +161,7 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
 
    <div className="table-responsive mt-3"><table className="table table-sm align-middle hotspot-data-table"><thead><tr><th>الباقة</th><th>الملف</th><th>الخادم</th><th>السعر</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>
     {products.map(product=><tr key={product.id}><td>{product.name}</td><td>{product.profileName}</td><td>{product.serverName||'all'}</td><td>{formatAmount(product.priceMinor,currencyCode,currencySymbol)}</td><td>{product.stockCount}</td><td><span className={product.active?'text-success':'text-secondary'}>{product.active?'نشطة':'موقوفة'}</span></td><td><div className="d-flex flex-wrap gap-1"><button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>startEdit(product)} disabled={savingProduct}>تعديل</button><button type="button" className="btn btn-sm btn-outline-primary" onClick={()=>void toggleProduct(product)} disabled={savingProduct}>{product.active?'إيقاف':'تفعيل'}</button></div></td></tr>)}
-    {!products.length&&<tr><td colSpan={7} className="text-center text-secondary py-3">لا توجد باقات بعد. أنشئ باقة ثم ولّد قسائم بالملف التعريفي نفسه.</td></tr>}
+    {!products.length&&<tr><td colSpan={7} className="text-center text-secondary py-3">لا توجد باقات بعد. أنشئ باقة واختر الملف التعريفي وخادم HotSpot المطابقين للقسائم التي ولدتها.</td></tr>}
    </tbody></table></div>
   </section>
 
@@ -169,7 +169,7 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
    <div className="hotspot-section-title"><h3>بيع كروت الدخول</h3><span>عملية ذرّية — لا بيع فوق المخزون</span></div>
    <form className="hotspot-editor" onSubmit={submitSale}>
     <div className="row g-3">
-     <div className="col-md-6"><label className="form-label" htmlFor="posSaleProduct">باقة البيع</label><select id="posSaleProduct" className="form-select form-control" value={saleProductID} onChange={event=>{setSaleProductID(event.target.value);setQuantity(1)}} required><option value="">اختر باقة متاحة</option>{products.filter(item=>item.active&&item.stockCount>0).map(item=><option key={item.id} value={item.id}>{item.name} — {formatAmount(item.priceMinor,currencyCode,currencySymbol)} — المخزون {item.stockCount}</option>)}</select></div>
+     <div className="col-md-6"><label className="form-label" htmlFor="posSaleProduct">باقة البيع</label><select id="posSaleProduct" className="form-select form-control" value={saleProductID} onChange={event=>{setSaleProductID(event.target.value);setQuantity(1)}} required><option value="">اختر باقة متاحة</option>{products.filter(item=>item.active&&item.stockCount>0).map(item=><option key={item.id} value={item.id}>{item.name} — {item.serverName||'all'} — {formatAmount(item.priceMinor,currencyCode,currencySymbol)} — المخزون {item.stockCount}</option>)}</select></div>
      <div className="col-md-3"><label className="form-label" htmlFor="posSaleQuantity">الكمية</label><input id="posSaleQuantity" className="form-control ltr-input" type="number" min={1} max={Math.max(1,maxQuantity)} value={quantity} onChange={event=>setQuantity(Number(event.target.value))} required/></div>
      <div className="col-md-3"><label className="form-label" htmlFor="posPaymentMethod">طريقة الدفع</label><select id="posPaymentMethod" className="form-select form-control" value={paymentMethod} onChange={event=>setPaymentMethod(event.target.value as PaymentMethod)}>{Object.entries(paymentLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
     </div>
@@ -199,7 +199,7 @@ function ReceiptContent({receipt,currencySymbol}:{receipt:POSSaleResult;currency
  return <div className="pos-receipt">
   <header><strong>إيصال بيع كروت إنترنت</strong><span dir="ltr">{receipt.sale.reference}</span></header>
   <div className="pos-receipt-meta"><span>التاريخ: {new Date(receipt.sale.createdAt).toLocaleString('ar')}</span><span>طريقة الدفع: {paymentLabels[receipt.sale.paymentMethod]}</span></div>
-  <table className="table table-sm"><thead><tr><th>اسم المستخدم</th><th>الباقة</th><th>السعر</th></tr></thead><tbody>{receipt.items.map(item=><tr key={item.id}><td dir="ltr">{item.username}</td><td>{item.productName}</td><td>{formatAmount(item.unitPriceMinor,receipt.sale.currencyCode,currencySymbol)}</td></tr>)}</tbody></table>
+  <table className="table table-sm"><thead><tr><th>اسم المستخدم</th><th>الباقة</th><th>الخادم</th><th>السعر</th></tr></thead><tbody>{receipt.items.map(item=><tr key={item.id}><td dir="ltr">{item.username}</td><td>{item.productName}</td><td>{item.serverName||'all'}</td><td>{formatAmount(item.unitPriceMinor,receipt.sale.currencyCode,currencySymbol)}</td></tr>)}</tbody></table>
   <div className="pos-receipt-total"><span>الإجمالي</span><strong>{formatAmount(receipt.sale.totalMinor,receipt.sale.currencyCode,currencySymbol)}</strong></div>
   <p className="pos-receipt-thanks">شكرًا لثقتكم</p>
  </div>;
