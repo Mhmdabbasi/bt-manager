@@ -163,7 +163,7 @@ export default function HotSpotManager({language,router,overview,businessName,cu
   {(view==='all'||view==='servers')&&(<section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>{tx("خوادم HotSpot")}</h3><span>{overview.counts.servers} {tx("خادم")}</span></div>
    <div className="table-responsive"><table className="table table-sm align-middle hotspot-data-table"><thead><tr><th>{tx("الاسم")}</th><th>{tx("الواجهة")}</th><th>{tx("مجمع العناوين")}</th><th>{tx("الملف")}</th><th>{tx("الحالة")}</th></tr></thead><tbody>
-    {overview.servers.map(row=><tr key={row.name}><td>{row.name||'—'}</td><td>{row.interface||'—'}</td><td>{row.addressPool||'—'}</td><td>{row.profile||'—'}</td><td><span className={row.disabled?'text-danger':'text-success'}>{row.disabled?'معطّل':'مفعّل'}</span></td></tr>)}
+    {overview.servers.map(row=><tr key={row.name}><td>{row.name||'—'}</td><td>{row.interface||'—'}</td><td>{row.addressPool||'—'}</td><td>{row.profile||'—'}</td><td><span className={row.disabled?'text-danger':'text-success'}>{tx(row.disabled?'معطّل':'مفعّل')}</span></td></tr>)}
     {!overview.servers.length&&<tr><td colSpan={5} className="text-center text-secondary py-3">{tx("لم يتم إعداد خادم HotSpot على هذا الراوتر.")}</td></tr>}
    </tbody></table></div>
   </section>)}
