@@ -80,13 +80,15 @@ func (s *Server) generateVouchers(w http.ResponseWriter, r *http.Request) {
 			failedCount = input.Count - len(result.Created)
 		}
 	}
-	batch, finishErr := s.app.DB.FinishVoucherBatch(ctx, batch.ID, failedCount, errorMessage)
+	finalizeCtx, finalizeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer finalizeCancel()
+	batch, finishErr := s.app.DB.FinishVoucherBatch(finalizeCtx, batch.ID, failedCount, errorMessage)
 	if finishErr != nil {
 		s.logger.Error("finish voucher batch failed", "batchId", batch.ID, "error", finishErr)
 		writeError(w, http.StatusInternalServerError, "voucher_batch_finalize_failed", "أُرسلت أوامر للراوتر ولكن تعذر إكمال سجل الدفعة محليًا")
 		return
 	}
-	vouchers, err := s.app.DB.ListVouchersByBatch(ctx, batch.ID)
+	vouchers, err := s.app.DB.ListVouchersByBatch(finalizeCtx, batch.ID)
 	if err != nil {
 		s.logger.Error("read generated vouchers failed", "batchId", batch.ID, "error", err)
 		writeError(w, http.StatusInternalServerError, "voucher_batch_read_failed", "تمت معالجة الدفعة لكن تعذر قراءة بطاقاتها محليًا")
