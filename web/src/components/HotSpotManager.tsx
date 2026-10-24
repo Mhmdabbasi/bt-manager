@@ -106,7 +106,7 @@ export default function HotSpotManager({router,overview,businessName,currencyCod
   </div>
 
   <VoucherStudio router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage}/>
-  <POSPanel profiles={overview.profiles} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>
+  <POSPanel profiles={overview.profiles} servers={overview.servers} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>
 
   <section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>مستخدمو HotSpot</h3><span>{overview.counts.users} حساب</span></div>
