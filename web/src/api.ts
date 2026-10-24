@@ -32,8 +32,8 @@ export const api={
  voucherBatch:(id:number)=>request<VoucherBatchResult>('/api/vouchers/batches/'+id),
 
  voucherProducts:(includeInactive=true)=>request<{products:VoucherProduct[]}>('/api/pos/products?includeInactive='+String(includeInactive)),
- createVoucherProduct:(payload:{name:string;profileName:string;priceMinor:number})=>request<VoucherProduct>('/api/pos/products',{method:'POST',body:JSON.stringify(payload)}),
- updateVoucherProduct:(id:number,payload:{name:string;profileName:string;priceMinor:number;active:boolean})=>request<VoucherProduct>('/api/pos/products/'+id,{method:'PUT',body:JSON.stringify(payload)}),
+ createVoucherProduct:(payload:{name:string;profileName:string;serverName:string;priceMinor:number})=>request<VoucherProduct>('/api/pos/products',{method:'POST',body:JSON.stringify(payload)}),
+ updateVoucherProduct:(id:number,payload:{name:string;profileName:string;serverName:string;priceMinor:number;active:boolean})=>request<VoucherProduct>('/api/pos/products/'+id,{method:'PUT',body:JSON.stringify(payload)}),
  posSales:()=>request<{sales:POSSale[]}>('/api/pos/sales'),
  createPOSSale:(payload:{requestId:string;productId:number;quantity:number;paymentMethod:'cash'|'transfer'|'card'|'other'})=>request<POSSaleResult>('/api/pos/sales',{method:'POST',body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)}),
  posSale:(id:number)=>request<POSSaleResult>('/api/pos/sales/'+id),
