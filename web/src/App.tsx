@@ -5,6 +5,38 @@ import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo} from './type
 
 const defaults:AppSettings={businessName:'bt-manager',currencyCode:'YER',currencySymbol:'ر.ي',setupComplete:false};
 type Flash={kind:'success'|'danger';message:string}|null;
+type Page='dashboard'|'settings'|'hotspot-users'|'hotspot-profiles'|'hotspot-sessions'|'hotspot-servers'|'vouchers'|'pos'|'user-manager';
+type HotSpotView='users'|'profiles'|'sessions'|'servers'|'vouchers'|'pos';
+const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
+ dashboard:{title:'نظرة عامة',eyebrow:'لوحة التحكم',description:'ملخص حالة التطبيق والشبكة وأهم وحدات العمل.'},
+ settings:{title:'الإعدادات والاتصال',eyebrow:'تهيئة النظام',description:'إعداد بيانات النشاط والعملة والاتصال براوتر MikroTik.'},
+ 'hotspot-users':{title:'مستخدمو HotSpot',eyebrow:'إدارة HotSpot',description:'إنشاء حسابات الدخول وتعديلها وتفعيلها أو تعطيلها.'},
+ 'hotspot-profiles':{title:'الملفات التعريفية',eyebrow:'إدارة HotSpot',description:'إدارة ملفات السرعة وحدود الجلسة والأجهزة المتزامنة.'},
+ 'hotspot-sessions':{title:'الجلسات النشطة',eyebrow:'مراقبة الشبكة',description:'عرض المستخدمين المتصلين وعناوينهم ومدد اتصالهم.'},
+ 'hotspot-servers':{title:'خوادم HotSpot',eyebrow:'إدارة HotSpot',description:'عرض خوادم HotSpot وواجهاتها وملفاتها التعريفية.'},
+ vouchers:{title:'دفعات الكروت والطباعة',eyebrow:'قسائم HotSpot',description:'إنشاء دفعات الدخول وضبط الرموز وتصميم الكروت وطباعتها.'},
+ pos:{title:'نقطة البيع',eyebrow:'المبيعات',description:'تعريف الباقات وبيع القسائم المتوفرة ومراجعة الإيصالات.'},
+ 'user-manager':{title:'User Manager',eyebrow:'إدارة RADIUS',description:'وحدة مستقلة قيد التطوير لتدعم User Manager حسب إصدار RouterOS والحزمة المتاحة.'}
+};
+const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:boolean}[]}[]=[
+ {label:'عام',items:[{page:'dashboard',label:'نظرة عامة',icon:'bi-grid-1x2-fill'},{page:'settings',label:'الإعدادات والاتصال',icon:'bi-router'}]},
+ {label:'إدارة HotSpot',items:[
+  {page:'hotspot-users',label:'المستخدمون',icon:'bi-people'},
+  {page:'hotspot-profiles',label:'الملفات التعريفية',icon:'bi-speedometer2'},
+  {page:'hotspot-sessions',label:'الجلسات النشطة',icon:'bi-activity'},
+  {page:'hotspot-servers',label:'خوادم HotSpot',icon:'bi-wifi'},
+  {page:'vouchers',label:'دفعات الكروت والطباعة',icon:'bi-ticket-perforated'}
+ ]},
+ {label:'البيع وإدارة المستخدمين',items:[
+  {page:'pos',label:'نقطة البيع',icon:'bi-shop'},
+  {page:'user-manager',label:'User Manager',icon:'bi-person-gear',soon:true}
+ ]}
+];
+const hotSpotViewByPage:Partial<Record<Page,HotSpotView>>={
+ 'hotspot-users':'users','hotspot-profiles':'profiles','hotspot-sessions':'sessions',
+ 'hotspot-servers':'servers',vouchers:'vouchers',pos:'pos'
+};
+const isHotSpotPage=(page:Page)=>page in hotSpotViewByPage;
 
 export default function App(){
  const [health,setHealth]=useState<HealthResponse|null>(null);
@@ -12,41 +44,100 @@ export default function App(){
  const [router,setRouter]=useState({address:'192.168.88.1',port:8728,username:'admin',password:'',useTls:false});
  const [info,setInfo]=useState<RouterInfo|null>(null);
  const [hotspot,setHotspot]=useState<HotSpotOverview|null>(null);
- const [testing,setTesting]=useState(false);const [loadingHotspot,setLoadingHotspot]=useState(false);const [saving,setSaving]=useState(false);const [flash,setFlash]=useState<Flash>(null);
- useEffect(()=>{void Promise.all([api.health(),api.settings()]).then(([h,s])=>{setHealth(h);setSettings(s)}).catch((e:Error)=>setFlash({kind:'danger',message:e.message}))},[]);
- async function save(e:FormEvent){e.preventDefault();setSaving(true);setFlash(null);try{setSettings(await api.saveSettings(settings));setFlash({kind:'success',message:'تم حفظ إعدادات النشاط والعملة.'})}catch(e){setFlash({kind:'danger',message:(e as Error).message})}finally{setSaving(false)}}
- async function testRouter(e:FormEvent){e.preventDefault();setTesting(true);setFlash(null);setInfo(null);try{const result=await api.testRouter(router);setInfo(result.router);setFlash({kind:'success',message:`تم الاتصال بالراوتر ${result.router.identity||router.address} بنجاح.`})}catch(e){setFlash({kind:'danger',message:(e as Error).message})}finally{setTesting(false)}}
- async function loadHotspot(showMessage=true){setLoadingHotspot(true);if(showMessage)setFlash(null);try{const result=await api.hotspotOverview(router);setHotspot(result);if(showMessage)setFlash({kind:'success',message:`تمت قراءة بيانات HotSpot: ${result.counts.users} مستخدم و${result.counts.activeSessions} جلسة نشطة.`})}catch(e){setFlash({kind:'danger',message:(e as Error).message})}finally{setLoadingHotspot(false)}}
- const setting=(key:keyof AppSettings,value:string|boolean)=>setSettings(s=>({...s,[key]:value}));
- const route=(key:keyof typeof router,value:string|number|boolean)=>setRouter(s=>({...s,[key]:value}));
+ const [page,setPage]=useState<Page>('dashboard');
+ const [testing,setTesting]=useState(false);
+ const [loadingHotspot,setLoadingHotspot]=useState(false);
+ const [saving,setSaving]=useState(false);
+ const [flash,setFlash]=useState<Flash>(null);
+
+ useEffect(()=>{
+  void Promise.all([api.health(),api.settings()])
+   .then(([h,s])=>{setHealth(h);setSettings(s)})
+   .catch((e:Error)=>setFlash({kind:'danger',message:e.message}));
+ },[]);
+
+ async function save(event:FormEvent){
+  event.preventDefault();setSaving(true);setFlash(null);
+  try{setSettings(await api.saveSettings(settings));setFlash({kind:'success',message:'تم حفظ إعدادات النشاط والعملة.'})}
+  catch(error){setFlash({kind:'danger',message:(error as Error).message})}
+  finally{setSaving(false)}
+ }
+ async function testRouter(event:FormEvent){
+  event.preventDefault();setTesting(true);setFlash(null);setInfo(null);
+  try{
+   const result=await api.testRouter(router);setInfo(result.router);
+   setFlash({kind:'success',message:`تم الاتصال بالراوتر ${result.router.identity||router.address} بنجاح.`});
+  }catch(error){setFlash({kind:'danger',message:(error as Error).message})}
+  finally{setTesting(false)}
+ }
+ async function loadHotspot(showMessage=true){
+  setLoadingHotspot(true);if(showMessage)setFlash(null);
+  try{
+   const result=await api.hotspotOverview(router);setHotspot(result);
+   if(showMessage)setFlash({kind:'success',message:`تمت قراءة بيانات HotSpot: ${result.counts.users} مستخدم و${result.counts.activeSessions} جلسة نشطة.`});
+  }catch(error){setFlash({kind:'danger',message:(error as Error).message})}
+  finally{setLoadingHotspot(false)}
+ }
+ function navigate(nextPage:Page){
+  setPage(nextPage);
+  if(isHotSpotPage(nextPage)&&!loadingHotspot){
+   if(info){void loadHotspot(false)}
+   else if(!hotspot){setFlash({kind:'danger',message:'افتح «الإعدادات والاتصال» واختبر اتصال الراوتر أولًا، ثم اقرأ بيانات HotSpot.'})}
+  }
+ }
+ const setting=(key:keyof AppSettings,value:string|boolean)=>setSettings(current=>({...current,[key]:value}));
+ const route=(key:keyof typeof router,value:string|number|boolean)=>setRouter(current=>({...current,[key]:value}));
+ const current=pageInfo[page];
+ const view=hotSpotViewByPage[page];
+
  return <div className="app-shell">
-  <aside className="sidebar"><div className="brand"><div className="brand-mark"><i className="bi bi-router-fill"/></div><div><strong>bt-manager</strong><small>إدارة شبكتك بذكاء</small></div></div><div className="sidebar-label">مساحة العمل</div>
-   <a className="nav-entry active" href="#overview"><i className="bi bi-grid-1x2-fill"/> نظرة عامة</a>
-   <a className="nav-entry" href="#router"><i className="bi bi-router"/> اتصال MikroTik</a>
-   <a className="nav-entry" href="#router"><i className="bi bi-wifi"/> مستخدمو HotSpot</a>
-   <a className="nav-entry" href="#router" onClick={()=>{if(!hotspot)void loadHotspot()}}><i className="bi bi-ticket-perforated"/> كروت الدخول</a>
-   <a className="nav-entry" href="#pos" onClick={()=>{if(!hotspot)void loadHotspot()}}><i className="bi bi-shop"/> نقاط البيع</a>
-   <div className="sidebar-bottom"><div className="secure-note"><i className="bi bi-shield-lock"/><div><b>تشغيل محلي</b><small>الوصول عبر LAN غير مفعل</small></div></div><small className="version">نسخة تأسيسية · 0.1.0-dev</small></div>
+  <aside className="sidebar">
+   <div className="brand"><div className="brand-mark"><i className="bi bi-router-fill"/></div><div><strong>bt-manager</strong><small>إدارة شبكتك بذكاء</small></div></div>
+   <nav className="sidebar-nav" aria-label="التنقل الرئيسي">
+    {navGroups.map(group=><div className="nav-group" key={group.label}>
+     <div className="sidebar-label">{group.label}</div>
+     {group.items.map(item=><button key={item.page} type="button" className={`nav-entry nav-entry-button ${page===item.page?'active':''}`} onClick={()=>navigate(item.page)} aria-current={page===item.page?'page':undefined}>
+      <i className={`bi ${item.icon}`}/><span>{item.label}</span>{item.soon&&<small className="soon">قيد التطوير</small>}
+     </button>)}
+    </div>)}
+   </nav>
+   <div className="sidebar-bottom"><div className="secure-note"><i className="bi bi-shield-lock"/><div><b>تشغيل محلي</b><small>الوصول عبر LAN غير مفعل</small></div></div><small className="version">نسخة تطويرية · 0.1.0-dev</small></div>
   </aside>
-  <main className="main-content" id="overview">
-   <header className="topbar"><div><div className="eyebrow">لوحة التحكم</div><h1>أهلًا بك في bt-manager</h1><p>إدارة الشبكة من مكان واحد، ببساطة ووضوح.</p></div><div className="top-status"><span className={`status-led ${health?.status==='ok'?'online':''}`}/>{health?.status==='ok'?'التطبيق يعمل':'جارٍ فحص الحالة'}</div></header>
-   {flash&&<div className={`alert alert-${flash.kind} d-flex align-items-center gap-2`} role="alert"><i className={flash.kind==='success'?'bi bi-check-circle':'bi bi-exclamation-triangle'}/><div>{flash.message}</div><button className="btn-close me-auto" onClick={()=>setFlash(null)} aria-label="إغلاق"/></div>}
-   <section className="welcome-panel"><div className="welcome-copy"><span className="pill">الخطوة الأولى</span><h2>لنبدأ بتجهيز شبكتك</h2><p>اضبط بيانات النشاط والعملة، ثم اختبر الاتصال براوتر MikroTik عبر الشبكة المحلية.</p><div className="setup-steps"><span className="step-done"><i className="bi bi-check2-circle"/> تشغيل التطبيق</span><span className={settings.setupComplete?'step-done':''}><i className={`bi ${settings.setupComplete?'bi-check2-circle':'bi-circle'}`}/> إعداد النشاط</span><span className={info?'step-done':''}><i className={`bi ${info?'bi-check2-circle':'bi-circle'}`}/> اتصال الراوتر</span></div></div><div className="welcome-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><i className="bi bi-router-fill"/><span className="signal signal-a"/><span className="signal signal-b"/><span className="signal signal-c"/></div></section>
-   <div className="section-heading"><div><h2>الإعداد الأولي</h2><p>تُحفظ الإعدادات في هذا الجهاز.</p></div><span className="section-index">01 / 02</span></div>
-   <div className="row g-4">
+
+  <main className="main-content">
+   <header className="topbar"><div><div className="eyebrow">{current.eyebrow}</div><h1>{current.title}</h1><p>{current.description}</p></div><div className="top-status"><span className={`status-led ${health?.status==='ok'?'online':''}`}/>{health?.status==='ok'?'التطبيق يعمل':'جارٍ فحص الحالة'}</div></header>
+   {flash&&<div className={`alert alert-${flash.kind} d-flex align-items-center gap-2`} role="alert"><i className={flash.kind==='success'?'bi bi-check-circle':'bi bi-exclamation-triangle'}/><div>{flash.message}</div><button type="button" className="btn-close me-auto" onClick={()=>setFlash(null)} aria-label="إغلاق"/></div>}
+
+   {page==='dashboard'&&<div className="dashboard-page">
+    <section className="welcome-panel"><div className="welcome-copy"><span className="pill">مساحة عمل موحدة</span><h2>إدارة الشبكة من مكان واحد</h2><p>تنقل بين مستخدمي HotSpot ودفعات الكروت ونقطة البيع عبر صفحات مستقلة، مع الإبقاء على واجهة عربية واضحة.</p><div className="setup-steps"><span className={settings.setupComplete?'step-done':''}><i className={`bi ${settings.setupComplete?'bi-check2-circle':'bi-circle'}`}/> إعداد النشاط</span><span className={info?'step-done':''}><i className={`bi ${info?'bi-check2-circle':'bi-circle'}`}/> اختبار الراوتر</span><span className={hotspot?'step-done':''}><i className={`bi ${hotspot?'bi-check2-circle':'bi-circle'}`}/> قراءة HotSpot</span></div></div><div className="welcome-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><i className="bi bi-router-fill"/><span className="signal signal-a"/><span className="signal signal-b"/><span className="signal signal-c"/></div></section>
+    <div className="section-heading"><div><h2>حالة الشبكة</h2><p>تتحدث المؤشرات بعد الاتصال وقراءة بيانات الراوتر.</p></div><button className="btn btn-outline-primary" type="button" onClick={()=>navigate('settings')}>الإعدادات والاتصال <i className="bi bi-arrow-left ms-1"/></button></div>
+    {hotspot?<div className="row g-3 dashboard-stat-grid">
+     {[{label:'مستخدمو HotSpot',value:hotspot.counts.users,icon:'bi-people-fill',page:'hotspot-users' as Page},{label:'الملفات التعريفية',value:hotspot.counts.profiles,icon:'bi-speedometer2',page:'hotspot-profiles' as Page},{label:'الجلسات النشطة',value:hotspot.counts.activeSessions,icon:'bi-activity',page:'hotspot-sessions' as Page},{label:'خوادم HotSpot',value:hotspot.counts.servers,icon:'bi-wifi',page:'hotspot-servers' as Page}].map(stat=><div className="col-6 col-xl-3" key={stat.label}><button type="button" className="dashboard-stat w-100" onClick={()=>navigate(stat.page)}><span className="dashboard-stat-icon"><i className={`bi ${stat.icon}`}/></span><small>{stat.label}</small><strong>{stat.value}</strong><span className="dashboard-stat-link">فتح القسم <i className="bi bi-arrow-left"/></span></button></div>)}
+    </div>:<section className="panel dashboard-setup-card"><div className="panel-heading"><div className="panel-icon cyan"><i className="bi bi-router"/></div><div><h3>ابدأ بربط الراوتر</h3><p>اختبر الاتصال ثم اقرأ بيانات HotSpot لعرض إحصاءات الشبكة.</p></div></div><button type="button" className="btn btn-primary" onClick={()=>navigate('settings')}>تهيئة الاتصال <i className="bi bi-arrow-left ms-1"/></button></section>}
+    <div className="row g-3 mt-1">
+     <div className="col-lg-6"><button type="button" className="dashboard-shortcut w-100" onClick={()=>navigate('vouchers')}><i className="bi bi-ticket-perforated"/><span><strong>دفعات الكروت</strong><small>أنشئ رموز الدخول وحدد طولها ونوع محارفها ثم اطبعها.</small></span><i className="bi bi-arrow-left"/></button></div>
+     <div className="col-lg-6"><button type="button" className="dashboard-shortcut w-100" onClick={()=>navigate('pos')}><i className="bi bi-shop"/><span><strong>نقطة البيع</strong><small>إدارة الباقات والمبيعات والإيصالات.</small></span><i className="bi bi-arrow-left"/></button></div>
+    </div>
+   </div>}
+
+   {page==='settings'&&<div className="row g-4 settings-grid">
     <div className="col-xl-5"><section className="panel h-100"><div className="panel-heading"><div className="panel-icon violet"><i className="bi bi-sliders2"/></div><div><h3>بيانات النشاط والعملة</h3><p>عملة واحدة لجميع العمليات المالية</p></div></div>
-     <form onSubmit={save} className="panel-form"><label className="form-label" htmlFor="businessName">اسم الشبكة أو النشاط</label><input id="businessName" className="form-control" maxLength={120} value={settings.businessName} onChange={e=>setting('businessName',e.target.value)} required/>
-      <div className="row g-3"><div className="col-6"><label className="form-label" htmlFor="currencyCode">رمز العملة (ISO)</label><input id="currencyCode" className="form-control text-uppercase" maxLength={3} minLength={3} pattern="[A-Za-z]{3}" value={settings.currencyCode} onChange={e=>setting('currencyCode',e.target.value.toUpperCase())} required/><div className="form-hint">مثل YER أو SAR</div></div><div className="col-6"><label className="form-label" htmlFor="currencySymbol">الرمز الظاهر</label><input id="currencySymbol" className="form-control" maxLength={12} value={settings.currencySymbol} onChange={e=>setting('currencySymbol',e.target.value)} required/><div className="form-hint">مثل ر.ي</div></div></div>
+     <form onSubmit={save} className="panel-form"><label className="form-label" htmlFor="businessName">اسم الشبكة أو النشاط</label><input id="businessName" className="form-control" maxLength={120} value={settings.businessName} onChange={event=>setting('businessName',event.target.value)} required/>
+      <div className="row g-3"><div className="col-6"><label className="form-label" htmlFor="currencyCode">رمز العملة (ISO)</label><input id="currencyCode" className="form-control text-uppercase" maxLength={3} minLength={3} pattern="[A-Za-z]{3}" value={settings.currencyCode} onChange={event=>setting('currencyCode',event.target.value.toUpperCase())} required/><div className="form-hint">مثل YER أو SAR</div></div><div className="col-6"><label className="form-label" htmlFor="currencySymbol">الرمز الظاهر</label><input id="currencySymbol" className="form-control" maxLength={12} value={settings.currencySymbol} onChange={event=>setting('currencySymbol',event.target.value)} required/><div className="form-hint">مثل ر.ي</div></div></div>
       <div className="helper-box"><i className="bi bi-info-circle"/><span>تأكد من العملة قبل بدء البيع؛ لن يمكن تغييرها بعد تسجيل أول معاملة مالية.</span></div><button className="btn btn-primary w-100" disabled={saving}>{saving?'جارٍ الحفظ...':'حفظ الإعدادات'}</button>
      </form></section></div>
-    <div className="col-xl-7" id="router"><section className="panel h-100"><div className="panel-heading"><div className="panel-icon cyan"><i className="bi bi-router"/></div><div><h3>الاتصال براوتر MikroTik</h3><p>اختبار قراءة معلومات النظام عبر LAN</p></div><span className="api-chip">RouterOS API</span></div>
-     <form onSubmit={testRouter} className="panel-form"><div className="row g-3"><div className="col-md-7"><label className="form-label" htmlFor="routerAddress">عنوان الراوتر</label><input id="routerAddress" className="form-control ltr-input" value={router.address} onChange={e=>route('address',e.target.value)} placeholder="192.168.88.1" autoComplete="off" required/></div><div className="col-md-5"><label className="form-label" htmlFor="routerPort">المنفذ</label><input id="routerPort" className="form-control ltr-input" type="number" min={1} max={65535} value={router.port} onChange={e=>route('port',Number(e.target.value))} required/></div><div className="col-md-6"><label className="form-label" htmlFor="routerUser">اسم المستخدم</label><input id="routerUser" className="form-control ltr-input" value={router.username} onChange={e=>route('username',e.target.value)} autoComplete="username" required/></div><div className="col-md-6"><label className="form-label" htmlFor="routerPassword">كلمة المرور</label><input id="routerPassword" className="form-control ltr-input" type="password" value={router.password} onChange={e=>route('password',e.target.value)} autoComplete="current-password" required/></div></div>
-      <label className="tls-option"><input className="form-check-input" type="checkbox" checked={router.useTls} onChange={e=>{const enabled=e.target.checked;route('useTls',enabled);route('port',enabled&&router.port===8728?8729:!enabled&&router.port===8729?8728:router.port)}}/><span><b>استخدام API-SSL</b><small>يتطلب إعداد شهادة موثوقة على الراوتر.</small></span><i className="bi bi-shield-check"/></label><button type="submit" className="btn btn-outline-primary w-100" disabled={testing||loadingHotspot}>{testing?'جارٍ اختبار الاتصال...':'اختبار اتصال الراوتر'}</button><button type="button" className="btn btn-primary w-100" disabled={testing||loadingHotspot} onClick={()=>void loadHotspot()}>{loadingHotspot?'جارٍ قراءة بيانات HotSpot...':'قراءة بيانات HotSpot'}</button>
+    <div className="col-xl-7"><section className="panel h-100"><div className="panel-heading"><div className="panel-icon cyan"><i className="bi bi-router"/></div><div><h3>الاتصال براوتر MikroTik</h3><p>اختبار قراءة معلومات النظام عبر LAN</p></div><span className="api-chip">RouterOS API</span></div>
+     <form onSubmit={testRouter} className="panel-form"><div className="row g-3"><div className="col-md-7"><label className="form-label" htmlFor="routerAddress">عنوان الراوتر</label><input id="routerAddress" className="form-control ltr-input" value={router.address} onChange={event=>route('address',event.target.value)} placeholder="192.168.88.1" autoComplete="off" required/></div><div className="col-md-5"><label className="form-label" htmlFor="routerPort">المنفذ</label><input id="routerPort" className="form-control ltr-input" type="number" min={1} max={65535} value={router.port} onChange={event=>route('port',Number(event.target.value))} required/></div><div className="col-md-6"><label className="form-label" htmlFor="routerUser">اسم المستخدم</label><input id="routerUser" className="form-control ltr-input" value={router.username} onChange={event=>route('username',event.target.value)} autoComplete="username" required/></div><div className="col-md-6"><label className="form-label" htmlFor="routerPassword">كلمة المرور</label><input id="routerPassword" className="form-control ltr-input" type="password" value={router.password} onChange={event=>route('password',event.target.value)} autoComplete="current-password" required/></div></div>
+      <label className="tls-option"><input className="form-check-input" type="checkbox" checked={router.useTls} onChange={event=>{const enabled=event.target.checked;route('useTls',enabled);route('port',enabled&&router.port===8728?8729:!enabled&&router.port===8729?8728:router.port)}}/><span><b>استخدام API-SSL</b><small>يتطلب إعداد شهادة موثوقة على الراوتر.</small></span><i className="bi bi-shield-check"/></label><button type="submit" className="btn btn-outline-primary w-100" disabled={testing||loadingHotspot}>{testing?'جارٍ اختبار الاتصال...':'اختبار اتصال الراوتر'}</button><button type="button" className="btn btn-primary w-100" disabled={testing||loadingHotspot} onClick={()=>void loadHotspot()}>{loadingHotspot?'جارٍ قراءة بيانات HotSpot...':'قراءة بيانات HotSpot'}</button>
      </form>
-     {info&&<div className="router-result"><div className="result-title"><i className="bi bi-check-circle-fill"/> معلومات الراوتر</div><div className="result-grid">{[['الهوية',info.identity],['RouterOS',info.version],['الطراز',info.model||info.boardName],['مدة التشغيل',info.uptime],['المعالج',info.cpu],['الذاكرة الحرة',info.freeMemory]].map(([k,v])=><div key={k}><small>{k}</small><b>{v||'—'}</b></div>)}</div></div>}
-     {hotspot&&<HotSpotManager router={router} overview={hotspot} businessName={settings.businessName} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onRefresh={()=>loadHotspot(false)} onMessage={(kind,message)=>setFlash({kind,message})}/>}
+     {info&&<div className="router-result"><div className="result-title"><i className="bi bi-check-circle-fill"/> معلومات الراوتر</div><div className="result-grid">{[['الهوية',info.identity],['RouterOS',info.version],['الطراز',info.model||info.boardName],['مدة التشغيل',info.uptime],['المعالج',info.cpu],['الذاكرة الحرة',info.freeMemory]].map(([key,value])=><div key={key}><small>{key}</small><b>{value||'—'}</b></div>)}</div></div>}
     </section></div>
-   </div>
+   </div>}
+
+   {view&&<>{hotspot?<HotSpotManager view={view} router={router} overview={hotspot} businessName={settings.businessName} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onRefresh={()=>loadHotspot(false)} onMessage={(kind,message)=>setFlash({kind,message})}/>:<section className="panel empty-router-state"><div className="panel-icon cyan"><i className="bi bi-router"/></div><h2>بيانات HotSpot غير محمّلة</h2><p>اختبر اتصال الراوتر من الإعدادات أولًا، ثم اقرأ بيانات HotSpot لفتح هذا القسم.</p><button type="button" className="btn btn-primary" onClick={()=>navigate('settings')}>فتح الإعدادات والاتصال</button></section>}</>}
+
+   {page==='user-manager'&&<section className="panel user-manager-placeholder"><div className="panel-icon violet"><i className="bi bi-person-gear"/></div><span className="status-pill-development">قيد التطوير</span><h2>User Manager — وحدة مستقلة</h2><p>لم تُربط هذه الوحدة بالراوتر بعد. سننفذها عبر محول مستقل يكتشف إصدار RouterOS وحزمة User Manager المتاحة، بدل استخدام مسارات HotSpot المحلية.</p><div className="row g-3 mt-2"><div className="col-md-6"><div className="helper-box"><i className="bi bi-router"/><span><b>RouterOS v6</b><br/>التحقق من مسارات User Manager التقليدية وإمكانية تشغيل الحزمة.</span></div></div><div className="col-md-6"><div className="helper-box"><i className="bi bi-diagram-3"/><span><b>RouterOS v7</b><br/>التحقق من المسارات الجديدة وصلاحيات الحساب والمحاسبة.</span></div></div></div><p className="small text-secondary mt-3 mb-0">لن تُنشأ أي حسابات User Manager من هذه الشاشة قبل اكتمال المحول والاختبارات المطلوبة.</p></section>}
+
    <footer className="page-footer"><div><span className="footer-mark">bt</span><span>bt-manager <small>· إدارة محلية لشبكات MikroTik</small></span></div><span><i className="bi bi-shield-check"/> يعمل على جهازك</span></footer>
   </main>
  </div>;
