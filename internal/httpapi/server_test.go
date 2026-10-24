@@ -233,3 +233,56 @@ func TestGetVoucherBatchRejectsInvalidID(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestListPOSProductsInitiallyEmpty(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/pos/products", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Products []map[string]any `json:"products"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Products) != 0 {
+		t.Fatalf("expected empty product catalog, got %d", len(payload.Products))
+	}
+}
+
+func TestPOSSaleRejectsInvalidQuantityBeforeWriting(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"requestId":"test-sale-0001","productId":1,"quantity":0,"paymentMethod":"cash"}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/pos/sales", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPOSMutationRejectsCrossSiteRequest(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/pos/products", `{"name":"Demo","profileName":"default","priceMinor":20000}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPOSSalesListInitiallyEmpty(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/pos/sales", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Sales []map[string]any `json:"sales"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Sales) != 0 {
+		t.Fatalf("expected no sales, got %d", len(payload.Sales))
+	}
+}
