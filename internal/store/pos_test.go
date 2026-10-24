@@ -140,3 +140,54 @@ func TestPOSSaleSameReferenceIsIdempotent(t *testing.T) {
 		t.Fatalf("retry duplicated the sale: sales=%d transactions=%d", sales, transactions)
 	}
 }
+
+func TestPOSProductStockIsScopedToHotSpotServer(t *testing.T) {
+	db := openPOSStore(t)
+	ctx := context.Background()
+
+	serverBatch, err := db.BeginVoucherBatch(ctx, NewVoucherBatch{
+		Reference: "VCH-SERVER-101", ProfileName: "default",
+		ServerName: "hotspot1", RequestedCount: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.AddVoucher(ctx, serverBatch.ID, "USER-HOTSPOT1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.FinishVoucherBatch(ctx, serverBatch.ID, 0, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	allBatch, err := db.BeginVoucherBatch(ctx, NewVoucherBatch{
+		Reference: "VCH-SERVER-102", ProfileName: "default",
+		ServerName: "all", RequestedCount: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.AddVoucher(ctx, allBatch.ID, "USER-ALL"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.FinishVoucherBatch(ctx, allBatch.ID, 0, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	product, err := db.CreateVoucherProduct(ctx, VoucherProductInput{
+		Name: "Hotspot 1 pack", ProfileName: "default", ServerName: "hotspot1",
+		PriceMinor: 15000, Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if product.StockCount != 1 {
+		t.Fatalf("server-specific stock = %d, want 1", product.StockCount)
+	}
+	sale, err := db.CreatePOSSale(ctx, "POS-TEST-SERVER-01", product.ID, 1, "cash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sale.Items) != 1 || sale.Items[0].Username != "USER-HOTSPOT1" || sale.Items[0].ServerName != "hotspot1" {
+		t.Fatalf("POS sold a voucher from the wrong HotSpot server: %+v", sale.Items)
+	}
+}
