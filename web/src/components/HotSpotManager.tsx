@@ -108,7 +108,7 @@ export default function HotSpotManager({router,overview,businessName,currencyCod
   </div>
 
   {(view==='all'||view==='vouchers')&&<VoucherStudio router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage}/>}
-  {(view==='all'||view==='pos')&&<POSPanel profiles={overview.profiles} servers={overview.servers} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>}>
+  {(view==='all'||view==='pos')&&<POSPanel profiles={overview.profiles} servers={overview.servers} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>}
 
   {(view==='all'||view==='users')&&(<section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>مستخدمو HotSpot</h3><span>{overview.counts.users} حساب</span></div>
