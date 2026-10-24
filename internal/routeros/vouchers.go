@@ -91,15 +91,7 @@ func GenerateHotSpotVouchers(
 			Username: input.Prefix + code, ProfileName: input.Profile,
 			ServerName: input.Server, LimitUptime: input.LimitUptime,
 		}
-		args := []string{
-			"=name=" + voucher.Username,
-			"=profile=" + input.Profile,
-			"=server=" + input.Server,
-			"=comment=bt-manager:" + input.Reference,
-		}
-		if input.LimitUptime != "" {
-			args = append(args, "=limit-uptime="+input.LimitUptime)
-		}
+		args := voucherCreateArgs(input, voucher.Username)
 		if _, err := api.SendContext(ctx, "/ip/hotspot/user/add", args...); err != nil {
 			result.FailedCount = input.Count - len(result.Created)
 			result.ErrorMessage = fmt.Sprintf("توقف التوليد بعد إنشاء %d من %d قسيمة: %s", len(result.Created), input.Count, safeRouterError(err))
@@ -118,6 +110,19 @@ func GenerateHotSpotVouchers(
 		}
 	}
 	return result, nil
+}
+
+func voucherCreateArgs(input VoucherBatchInput, username string) []string {
+	args := []string{
+		"=name=" + username,
+		"=profile=" + input.Profile,
+		"=server=" + input.Server,
+		"=comment=bt-manager:" + input.Reference,
+	}
+	if input.LimitUptime != "" {
+		args = append(args, "=limit-uptime="+input.LimitUptime)
+	}
+	return args
 }
 
 func randomVoucherCode(length int) (string, error) {
