@@ -88,6 +88,7 @@ export interface VoucherProduct {
   name: string;
   profileName: string;
   serverName: string;
+  limitUptime: string;
   priceMinor: number;
   active: boolean;
   stockCount: number;
@@ -110,6 +111,7 @@ export interface POSSaleItem {
   productName: string;
   profileName: string;
   serverName: string;
+  limitUptime: string;
   unitPriceMinor: number;
   currencyCode: string;
 }
