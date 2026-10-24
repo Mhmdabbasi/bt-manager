@@ -16,6 +16,7 @@ export interface HotSpotServer {
   disabled: boolean;
 }
 export interface HotSpotProfile {
+  id: string;
   name: string;
   rateLimit: string;
   sharedUsers: string;
