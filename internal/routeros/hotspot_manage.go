@@ -124,7 +124,6 @@ func runHotSpotMutation(ctx context.Context, request TestRequest, command string
 func normalizeUser(user HotSpotUserInput, creating bool) (HotSpotUserInput, error) {
 	user.ID = strings.TrimSpace(user.ID)
 	user.Name = strings.TrimSpace(user.Name)
-	user.Password = strings.TrimSpace(user.Password)
 	user.Profile = strings.TrimSpace(user.Profile)
 	user.Server = strings.TrimSpace(user.Server)
 	user.LimitUptime = strings.TrimSpace(user.LimitUptime)
