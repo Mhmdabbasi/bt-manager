@@ -25,7 +25,7 @@ export default function App(){
    <a className="nav-entry" href="#router"><i className="bi bi-router"/> اتصال MikroTik</a>
    <a className="nav-entry" href="#router"><i className="bi bi-wifi"/> مستخدمو HotSpot</a>
    <a className="nav-entry" href="#router" onClick={()=>{if(!hotspot)void loadHotspot()}}><i className="bi bi-ticket-perforated"/> كروت الدخول</a>
-   <a className="nav-entry disabled" href="#pos" onClick={e=>e.preventDefault()}><i className="bi bi-shop"/> نقاط البيع <span className="soon">لاحقًا</span></a>
+   <a className="nav-entry" href="#pos" onClick={()=>{if(!hotspot)void loadHotspot()}}><i className="bi bi-shop"/> نقاط البيع</a>
    <div className="sidebar-bottom"><div className="secure-note"><i className="bi bi-shield-lock"/><div><b>تشغيل محلي</b><small>الوصول عبر LAN غير مفعل</small></div></div><small className="version">نسخة تأسيسية · 0.1.0-dev</small></div>
   </aside>
   <main className="main-content" id="overview">
@@ -44,7 +44,7 @@ export default function App(){
       <label className="tls-option"><input className="form-check-input" type="checkbox" checked={router.useTls} onChange={e=>{const enabled=e.target.checked;route('useTls',enabled);route('port',enabled&&router.port===8728?8729:!enabled&&router.port===8729?8728:router.port)}}/><span><b>استخدام API-SSL</b><small>يتطلب إعداد شهادة موثوقة على الراوتر.</small></span><i className="bi bi-shield-check"/></label><button type="submit" className="btn btn-outline-primary w-100" disabled={testing||loadingHotspot}>{testing?'جارٍ اختبار الاتصال...':'اختبار اتصال الراوتر'}</button><button type="button" className="btn btn-primary w-100" disabled={testing||loadingHotspot} onClick={()=>void loadHotspot()}>{loadingHotspot?'جارٍ قراءة بيانات HotSpot...':'قراءة بيانات HotSpot'}</button>
      </form>
      {info&&<div className="router-result"><div className="result-title"><i className="bi bi-check-circle-fill"/> معلومات الراوتر</div><div className="result-grid">{[['الهوية',info.identity],['RouterOS',info.version],['الطراز',info.model||info.boardName],['مدة التشغيل',info.uptime],['المعالج',info.cpu],['الذاكرة الحرة',info.freeMemory]].map(([k,v])=><div key={k}><small>{k}</small><b>{v||'—'}</b></div>)}</div></div>}
-     {hotspot&&<HotSpotManager router={router} overview={hotspot} businessName={settings.businessName} onRefresh={()=>loadHotspot(false)} onMessage={(kind,message)=>setFlash({kind,message})}/>}
+     {hotspot&&<HotSpotManager router={router} overview={hotspot} businessName={settings.businessName} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onRefresh={()=>loadHotspot(false)} onMessage={(kind,message)=>setFlash({kind,message})}/>}
     </section></div>
    </div>
    <footer className="page-footer"><div><span className="footer-mark">bt</span><span>bt-manager <small>· إدارة محلية لشبكات MikroTik</small></span></div><span><i className="bi bi-shield-check"/> يعمل على جهازك</span></footer>
