@@ -146,7 +146,7 @@ func TestHotSpotOverviewRejectsCrossSiteRequest(t *testing.T) {
 
 func TestHotSpotUserCreateRejectsMissingName(t *testing.T) {
 	rec := httptest.NewRecorder()
-	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":"voucher-1"}}`
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":""}}`
 	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/create", body))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
@@ -178,7 +178,7 @@ func TestHotSpotMutationRejectsCrossSiteRequest(t *testing.T) {
 
 func TestHotSpotUserCreateRejectsMissingNameWithBlankPassword(t *testing.T) {
 	rec := httptest.NewRecorder()
-	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":"voucher-1","password":""}}`
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":"","password":""}}`
 	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/create", body))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
