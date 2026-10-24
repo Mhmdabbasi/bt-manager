@@ -53,10 +53,30 @@ func TestRandomVoucherCodeUsesExpectedLengthAndAlphabet(t *testing.T) {
 }
 
 func TestHotSpotVoucherCreateArgsOmitPassword(t *testing.T) {
-	args := []string{"=name=BT-AAAA2222", "=profile=default", "=server=all"}
+	args := voucherCreateArgs(VoucherBatchInput{
+		Reference: "VCH-TEST", Profile: "default", Server: "all",
+	}, "BT-AAAA2222")
 	for _, arg := range args {
 		if len(arg) >= len("=password=") && arg[:len("=password=")] == "=password=" {
 			t.Fatalf("password must not be sent for username-only voucher: %q", arg)
 		}
+	}
+	if len(args) < 3 || args[0] != "=name=BT-AAAA2222" {
+		t.Fatalf("unexpected voucher command arguments: %#v", args)
+	}
+}
+
+func TestHotSpotVoucherCreateArgsIncludeOptionalLimit(t *testing.T) {
+	args := voucherCreateArgs(VoucherBatchInput{
+		Reference: "VCH-TEST", Profile: "default", Server: "all", LimitUptime: "1d00:00:00",
+	}, "BT-AAAA2222")
+	found := false
+	for _, arg := range args {
+		if arg == "=limit-uptime=1d00:00:00" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected time limit to be included: %#v", args)
 	}
 }
