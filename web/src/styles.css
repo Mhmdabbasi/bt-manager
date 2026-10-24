@@ -344,3 +344,21 @@ body[data-theme="dark"] .empty-router-state,body[data-theme="dark"] .user-manage
  html,body,#root,.main-content,body[data-theme="dark"] .main-content{background:#fff!important;color:#111!important}
  body[data-theme="dark"] .pos-receipt{background:#fff!important;color:#111!important}
 }
+
+
+/* Additional contrast tuning for utility chips and form controls in dark mode */
+body[data-theme="dark"] .api-chip{background:#122d3d;border-color:#2b5262;color:#85dce4}
+body[data-theme="dark"] .tls-option{background:#101d2d;border-color:#2a3c51}
+body[data-theme="dark"] .tls-option b{color:#c1d2e3}
+body[data-theme="dark"] .tls-option small{color:#92a7bd}
+body[data-theme="dark"] .tls-option>i{color:#73d5d5}
+body[data-theme="dark"] .btn-outline-secondary{color:#c7d5e4;border-color:#465d73}
+body[data-theme="dark"] .btn-outline-secondary:hover:not(:disabled){background:#22374b;border-color:#66849b;color:#f0f6fc}
+body[data-theme="dark"] .btn-outline-danger{color:#ff9c9c;border-color:#824b56}
+body[data-theme="dark"] .btn-outline-danger:hover:not(:disabled){background:#40232c;color:#ffc1c1;border-color:#b75f6b}
+body[data-theme="dark"] .btn-link{color:#7dd9e2}
+body[data-theme="dark"] .text-success{color:#78d8b7!important}
+body[data-theme="dark"] .text-danger{color:#ff9da6!important}
+body[data-theme="dark"] .form-check-label{color:#c5d4e2}
+body[data-theme="dark"] .form-check-input{background-color:#102033;border-color:#52677c}
+body[data-theme="dark"] .form-check-input:checked{background-color:#147d91;border-color:#147d91}
