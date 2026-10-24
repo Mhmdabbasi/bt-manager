@@ -19,6 +19,7 @@ type voucherProductRequest struct {
 }
 
 type posSaleRequest struct {
+	RequestID     string `json:"requestId"`
 	ProductID    int64  `json:"productId"`
 	Quantity     int    `json:"quantity"`
 	PaymentMethod string `json:"paymentMethod"`
@@ -108,7 +109,11 @@ func (s *Server) createPOSSale(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_json", "بيانات البيع غير صالحة")
 		return
 	}
-	reference, err := newPOSSaleReference()
+	reference, err := newPOSSaleReference(req.RequestID)
+	if errors.Is(err, store.ErrInvalidPOSSale) {
+		writeError(w, http.StatusBadRequest, "invalid_sale_request_id", "معرّف طلب البيع غير صالح")
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "sale_reference_failed", "تعذر إنشاء رقم البيع")
 		return
@@ -164,11 +169,24 @@ func (s *Server) getPOSSale(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-func newPOSSaleReference() (string, error) {
-	ref, err := newVoucherBatchReference()
-	if err != nil {
-		return "", err
+func newPOSSaleReference(requestID string) (string, error) {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" {
+		ref, err := newVoucherBatchReference()
+		if err != nil {
+			return "", err
+		}
+		return "POS-" + strings.TrimPrefix(ref, "VCH-"), nil
 	}
-	return "POS-" + strings.TrimPrefix(ref, "VCH-"), nil
+	if len(requestID) < 8 || len(requestID) > 64 {
+		return "", store.ErrInvalidPOSSale
+	}
+	for _, r := range requestID {
+		if !(r >= 'a' && r <= 'z') && !(r >= 'A' && r <= 'Z') &&
+			!(r >= '0' && r <= '9') && r != '-' {
+			return "", store.ErrInvalidPOSSale
+		}
+	}
+	return "POS-" + requestID, nil
 }
 
