@@ -14,6 +14,7 @@ import (
 type voucherProductRequest struct {
 	Name        string `json:"name"`
 	ProfileName string `json:"profileName"`
+	ServerName  string `json:"serverName"`
 	PriceMinor  int64  `json:"priceMinor"`
 	Active      bool   `json:"active"`
 }
@@ -45,7 +46,7 @@ func (s *Server) createVoucherProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	product, err := s.app.DB.CreateVoucherProduct(r.Context(), store.VoucherProductInput{
-		Name: req.Name, ProfileName: req.ProfileName, PriceMinor: req.PriceMinor, Active: true,
+		Name: req.Name, ProfileName: req.ProfileName, ServerName: req.ServerName, PriceMinor: req.PriceMinor, Active: true,
 	})
 	if errors.Is(err, store.ErrInvalidPOSSale) {
 		writeError(w, http.StatusBadRequest, "invalid_product", "تحقق من اسم الباقة والملف التعريفي والسعر")
@@ -53,7 +54,7 @@ func (s *Server) createVoucherProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique constraint failed") {
-			writeError(w, http.StatusConflict, "product_name_exists", "يوجد منتج آخر بهذا الاسم")
+			writeError(w, http.StatusConflict, "product_name_exists", "توجد باقة أخرى بهذا الاسم أو الملف التعريفي والخادم")
 			return
 		}
 		s.logger.Error("create voucher product failed", "error", err)
@@ -78,7 +79,7 @@ func (s *Server) updateVoucherProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	product, err := s.app.DB.UpdateVoucherProduct(r.Context(), id, store.VoucherProductInput{
-		Name: req.Name, ProfileName: req.ProfileName, PriceMinor: req.PriceMinor, Active: req.Active,
+		Name: req.Name, ProfileName: req.ProfileName, ServerName: req.ServerName, PriceMinor: req.PriceMinor, Active: req.Active,
 	})
 	if errors.Is(err, store.ErrVoucherProductNotFound) {
 		writeError(w, http.StatusNotFound, "product_not_found", "الباقة غير موجودة")
