@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestHotSpotSnapshotRejectsInvalidRequest(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1e9)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	_, err := HotSpotSnapshot(ctx, TestRequest{})
 	if !errors.Is(err, ErrInvalidRequest) {
