@@ -496,7 +496,7 @@ const englishEntries: Array<[string, string]> = [
 ];
 
 // Duplicate source keys are intentional during incremental translation work; later entries override earlier ones.
-const english: Record<string, string> = Object.fromEntries(englishEntries);;
+const english: Record<string, string> = Object.fromEntries(englishEntries);
 
 export function t(language: Language, text: string): string {
   if (language === 'ar') return text;
