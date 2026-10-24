@@ -252,11 +252,11 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 		VALUES(?,'sale',?,?)`, reference, total, currency); err != nil {
 		return POSSaleResult{}, fmt.Errorf("record financial transaction: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
+	sale := POSSale{ID: saleID, Reference: reference, TotalMinor: total, CurrencyCode: currency, PaymentMethod: paymentMethod}
+	if err := tx.QueryRowContext(ctx, `SELECT created_at FROM pos_sales WHERE id=?`, saleID).Scan(&sale.CreatedAt); err != nil {
 		return POSSaleResult{}, err
 	}
-	sale := POSSale{ID: saleID, Reference: reference, TotalMinor: total, CurrencyCode: currency, PaymentMethod: paymentMethod}
-	if err := db.QueryRowContext(ctx, `SELECT created_at FROM pos_sales WHERE id=?`, saleID).Scan(&sale.CreatedAt); err != nil {
+	if err := tx.Commit(); err != nil {
 		return POSSaleResult{}, err
 	}
 	return POSSaleResult{Sale: sale, Items: items}, nil
@@ -296,8 +296,8 @@ func (db *DB) GetPOSSale(ctx context.Context, id int64) (POSSaleResult, error) {
 	if err != nil {
 		return POSSaleResult{}, err
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id,voucher_id,product_id,product_name,profile_name,unit_price_minor,currency_code
-		FROM pos_sale_items WHERE sale_id=? ORDER BY id`, id)
+	rows, err := db.QueryContext(ctx, `SELECT i.id,i.voucher_id,v.username,i.product_id,i.product_name,i.profile_name,i.unit_price_minor,i.currency_code
+		FROM pos_sale_items i JOIN vouchers v ON v.id=i.voucher_id WHERE i.sale_id=? ORDER BY i.id`, id)
 	if err != nil {
 		return POSSaleResult{}, err
 	}
@@ -305,7 +305,7 @@ func (db *DB) GetPOSSale(ctx context.Context, id int64) (POSSaleResult, error) {
 	result.Items = make([]POSSaleItem, 0)
 	for rows.Next() {
 		var item POSSaleItem
-		if err := rows.Scan(&item.ID, &item.VoucherID, &item.ProductID, &item.ProductName,
+		if err := rows.Scan(&item.ID, &item.VoucherID, &item.Username, &item.ProductID, &item.ProductName,
 			&item.ProfileName, &item.UnitPriceMinor, &item.CurrencyCode); err != nil {
 			return POSSaleResult{}, err
 		}
