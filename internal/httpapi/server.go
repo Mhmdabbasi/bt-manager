@@ -40,6 +40,7 @@ func New(application *app.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /api/settings", s.getSettings)
 	mux.HandleFunc("PUT /api/settings", s.putSettings)
 	mux.HandleFunc("POST /api/router/test", s.testRouter)
+	mux.HandleFunc("POST /api/router/hotspot/overview", s.hotspotOverview)
 	mux.Handle("/", ui.Handler())
 	return securityHeaders(s.requestLogger(mux))
 }
@@ -190,6 +191,31 @@ func (s *Server) testRouter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "connected", "router": info})
+}
+
+
+func (s *Server) hotspotOverview(w http.ResponseWriter, r *http.Request) {
+	if !guardLocalMutation(w, r) {
+		return
+	}
+	var request routerosadapter.TestRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", "بيانات الاتصال غير صالحة")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
+	defer cancel()
+	snapshot, err := routerosadapter.HotSpotSnapshot(ctx, request)
+	if errors.Is(err, routerosadapter.ErrInvalidRequest) {
+		writeError(w, http.StatusBadRequest, "invalid_router_parameters", "أدخل العنوان واسم المستخدم وكلمة المرور ومنفذًا صالحًا")
+		return
+	}
+	if err != nil {
+		s.logger.Warn("RouterOS HotSpot read failed", "address", request.Address, "error", err)
+		writeError(w, http.StatusBadGateway, "hotspot_read_failed", "تعذرت قراءة بيانات HotSpot. تحقق من صلاحيات API وإعدادات HotSpot على الراوتر.")
+		return
+	}
+	writeJSON(w, http.StatusOK, snapshot)
 }
 
 func (s *Server) requestLogger(next http.Handler) http.Handler {
