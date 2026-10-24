@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS voucher_products (
   name TEXT NOT NULL UNIQUE,
   profile_name TEXT NOT NULL,
   server_name TEXT NOT NULL DEFAULT 'all',
+  limit_uptime TEXT NOT NULL DEFAULT '',
   price_minor INTEGER NOT NULL CHECK(price_minor > 0),
   active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS pos_sale_items (
   product_name TEXT NOT NULL,
   profile_name TEXT NOT NULL,
   server_name TEXT NOT NULL DEFAULT 'all',
+  limit_uptime TEXT NOT NULL DEFAULT '',
   unit_price_minor INTEGER NOT NULL CHECK(unit_price_minor > 0),
   currency_code TEXT NOT NULL CHECK(length(currency_code)=3)
 );
@@ -37,4 +39,4 @@ CREATE INDEX IF NOT EXISTS idx_pos_sales_created ON pos_sales(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pos_sale_items_sale_id ON pos_sale_items(sale_id);
 CREATE INDEX IF NOT EXISTS idx_voucher_products_active ON voucher_products(active,profile_name);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_voucher_products_profile_server_unique ON voucher_products(profile_name,server_name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_voucher_products_inventory_unique ON voucher_products(profile_name,server_name,limit_uptime);
