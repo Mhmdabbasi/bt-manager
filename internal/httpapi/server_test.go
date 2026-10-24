@@ -144,7 +144,7 @@ func TestHotSpotOverviewRejectsCrossSiteRequest(t *testing.T) {
 	}
 }
 
-func TestHotSpotUserCreateRejectsMissingPassword(t *testing.T) {
+func TestHotSpotUserCreateRejectsMissingName(t *testing.T) {
 	rec := httptest.NewRecorder()
 	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":"voucher-1"}}`
 	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/create", body))
@@ -176,7 +176,7 @@ func TestHotSpotMutationRejectsCrossSiteRequest(t *testing.T) {
 	}
 }
 
-func TestHotSpotUserCreateValidatesBeforeConnecting(t *testing.T) {
+func TestHotSpotUserCreateRejectsMissingNameWithBlankPassword(t *testing.T) {
 	rec := httptest.NewRecorder()
 	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":"voucher-1","password":""}}`
 	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/create", body))
