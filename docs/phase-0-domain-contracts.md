@@ -1,6 +1,6 @@
 # Phase 0 — Domain foundation and API contracts
 
-Status: implemented as an additive SQLite schema foundation; application handlers/UI for these contracts are future phases.
+Status: additive SQLite schema foundation is implemented; application handlers/UI for these contracts are future phases.
 Branch: `feature/phase-1-foundation`.
 
 ## Goals
@@ -12,7 +12,7 @@ Branch: `feature/phase-1-foundation`.
 5. Persist real template assets and versioned design/page-layout snapshots, so templates can be reopened and batches can be reprinted using their original layout.
 6. Add new relationships without deleting or silently reclassifying existing vouchers, voucher products, receipts, or financial transactions.
 
-## Schema added in migrations 0005–0008
+## Schema added in migrations 0005–0009
 
 ### Source and service data
 
@@ -35,8 +35,9 @@ Application-level validation must confirm that an overridden template belongs to
 ### Card design and output
 
 - `design_assets` stores asset metadata and a generated storage key. Binary files live in the application's managed data directory, not inside SQLite and not in a web URL supplied by the caller.
-- `card_templates` scopes a template to a package and either globally or to a specific point of sale. Multiple templates can be saved. Only one global default template per package may be selected.
+- `card_templates` scopes a template to a package and either globally or to a specific point of sale. Multiple templates can be saved. Only one active global default template per package may be selected.
 - `card_template_versions` stores immutable versions with card width/height in millimetres, design-element JSON, page-layout JSON, and an optional background asset. Changes create a new version; update/delete triggers protect older versions. A print job/batch stores the version ID used so later edits do not change old batch reprints.
+- `print_jobs` records each initial print or reprint separately, using a template version ID and safe relative output key. It records output status, page/card counts, errors, and timestamps; it does not create vouchers or imply a sale.
 
 Recommended design JSON is a versioned document, e.g.:
 ```json
@@ -127,8 +128,8 @@ Keep the existing `/api/router/hotspot/vouchers/generate` endpoint as a compatib
 
 ## Migration safety and completion checklist
 
-- Migrations 0005–0008 are additive. Do not rewrite or discard earlier rows.
+- Migrations 0005–0009 are additive. Do not rewrite or discard earlier rows.
 - No router password is stored in the new `routers` table.
 - Do not auto-convert legacy `voucher_products` into `card_packages`; the old records lack a guaranteed stable profile/router relationship. Later, provide an explicit mapping flow if data migration is wanted.
 - Keep legacy APIs/schema until the new package/profile paths are implemented and a migration plan is tested.
-- Tests should verify migration count, FK integrity, profile/system checks, multi-limitation mappings, template scope, immutable template versions, package/POS snapshots, and legacy table survival.
+- Tests should verify migration count, FK integrity, profile/system checks, multi-limitation mappings, template scope, immutable template versions/assets, print-job references, package/POS snapshots, and legacy table survival.
