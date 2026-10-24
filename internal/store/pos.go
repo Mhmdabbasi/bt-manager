@@ -34,6 +34,7 @@ type VoucherProduct struct {
 type VoucherProductInput struct {
 	Name        string
 	ProfileName string
+	ServerName  string
 	PriceMinor  int64
 	Active      bool
 }
@@ -121,8 +122,8 @@ func (db *DB) GetVoucherProduct(ctx context.Context, id int64) (VoucherProduct, 
 }
 
 func (db *DB) ListVoucherProducts(ctx context.Context, includeInactive bool) ([]VoucherProduct, error) {
-	query := `SELECT p.id,p.name,p.profile_name,p.price_minor,p.active,
-		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.status='available'),
+	query := `SELECT p.id,p.name,p.profile_name,p.server_name,p.price_minor,p.active,
+		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.status='available'),
 		p.created_at,p.updated_at FROM voucher_products p`
 	if !includeInactive {
 		query += " WHERE p.active=1"
@@ -137,7 +138,7 @@ func (db *DB) ListVoucherProducts(ctx context.Context, includeInactive bool) ([]
 	for rows.Next() {
 		var product VoucherProduct
 		var active int
-		if err := rows.Scan(&product.ID, &product.Name, &product.ProfileName, &product.PriceMinor,
+		if err := rows.Scan(&product.ID, &product.Name, &product.ProfileName, &product.ServerName, &product.PriceMinor,
 			&active, &product.StockCount, &product.CreatedAt, &product.UpdatedAt); err != nil {
 			return nil, err
 		}
