@@ -64,3 +64,33 @@ func TestVoucherUsernameIsUniqueAcrossBatches(t *testing.T) {
 		}
 	}
 }
+
+func TestVoucherBatchPersistsCredentialOptionsAndPasswords(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "credentials.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	batch, err := db.BeginVoucherBatch(ctx, NewVoucherBatch{
+		Reference: "VCH-TEST-CREDENTIALS", Prefix: "NET-", ProfileName: "default",
+		RequestedCount: 1, UsernameLength: 10, UsernameMode: "numbers",
+		PasswordMode: "random", PasswordLength: 6, PasswordCharset: "letters",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if batch.UsernameLength != 10 || batch.UsernameMode != "numbers" || batch.PasswordMode != "random" || batch.PasswordLength != 6 || batch.PasswordCharset != "letters" {
+		t.Fatalf("credential options were not persisted: %+v", batch)
+	}
+	if _, err := db.AddVoucher(ctx, batch.ID, "NET-1234567890", "PASSXY"); err != nil {
+		t.Fatal(err)
+	}
+	vouchers, err := db.ListVouchersByBatch(ctx, batch.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vouchers) != 1 || vouchers[0].Password != "PASSXY" {
+		t.Fatalf("voucher password was not persisted: %+v", vouchers)
+	}
+}
