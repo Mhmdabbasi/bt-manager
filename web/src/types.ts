@@ -79,5 +79,6 @@ export interface Voucher {
 export interface VoucherBatchResult {
   batch: VoucherBatch;
   vouchers: Voucher[];
+  untrackedUsernames?: string[];
   errorMessage?: string;
 }
