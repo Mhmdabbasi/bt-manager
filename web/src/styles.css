@@ -74,3 +74,40 @@
  #voucherPrintRoot .voucher-sheet-3x20 .voucher-card-meta{font-size:4.2pt!important;padding-top:.45mm!important}
  #voucherPrintRoot .voucher-sheet-3x20 .voucher-card-note{font-size:3.8pt!important;margin-top:.3mm!important}
 }
+
+/* Point of sale */
+.pos-panel{min-width:0}
+.pos-subsection{margin-top:24px;padding-top:20px;border-top:1px solid #edf1f6;min-width:0}
+.pos-subsection .hotspot-section-title h3{font-size:13px}
+.pos-stat{height:100%;min-height:72px;padding:13px;background:#f4f8fb;border:1px solid #e8eff5;border-radius:10px}
+.pos-stat small{display:block;color:#8494a8;font-size:10px;margin-bottom:8px}
+.pos-stat strong{display:block;font-size:21px;line-height:1.1;color:#197fa8}
+.pos-sale-total{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #d7edf2;background:#f3fbfd;border-radius:10px;padding:13px 15px;margin-top:16px}
+.pos-sale-total span{font-size:12px;color:#5e7288}
+.pos-sale-total strong{font-size:21px;color:#197fa8}
+.pos-receipt-preview{padding:16px;border:1px solid #e2eaf1;border-radius:12px;background:#f8fafc}
+.pos-receipt-preview h3{font-size:14px;font-weight:700;margin:0;color:#26364b}
+.pos-receipt{background:#fff;border:1px solid #dce5ed;border-radius:8px;padding:18px;max-width:700px;margin:0 auto;color:#25364a}
+.pos-receipt header{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:12px;border-bottom:1px dashed #c9d6e2}
+.pos-receipt header strong{font-size:16px}
+.pos-receipt header span{font:600 11px Consolas,monospace;overflow-wrap:anywhere}
+.pos-receipt-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin:12px 0;font-size:11px;color:#61758b}
+.pos-receipt .table{font-size:11px;margin-bottom:12px}
+.pos-receipt .table th{background:#f5f8fb;color:#62758b}
+.pos-receipt .table td{vertical-align:middle}
+.pos-receipt-total{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #c9d6e2;padding-top:12px;font-size:13px}
+.pos-receipt-total strong{font-size:18px}
+.pos-receipt-thanks{text-align:center;margin:18px 0 0;color:#7e92a6;font-size:11px}
+.pos-receipt-print-root{display:none}
+@media print{
+ body.print-pos-receipt *{visibility:hidden!important}
+ body.print-pos-receipt #posReceiptPrintRoot,
+ body.print-pos-receipt #posReceiptPrintRoot *{visibility:visible!important}
+ body.print-pos-receipt #posReceiptPrintRoot{display:block!important;position:absolute!important;left:0!important;top:0!important;width:180mm!important;margin:0!important;padding:0!important;background:#fff!important;z-index:1000000!important}
+ body.print-pos-receipt #posReceiptPrintRoot .pos-receipt{max-width:none!important;width:100%!important;border:0!important;border-radius:0!important;padding:5mm!important}
+ body.print-pos-receipt #voucherPrintRoot{display:none!important}
+ body.print-pos-receipt #posReceiptPrintRoot .pos-receipt header strong{font-size:16pt!important}
+ body.print-pos-receipt #posReceiptPrintRoot .pos-receipt-meta{font-size:9pt!important}
+ body.print-pos-receipt #posReceiptPrintRoot .table{font-size:9pt!important}
+ body.print-pos-receipt #posReceiptPrintRoot .pos-receipt-total strong{font-size:15pt!important}
+}
