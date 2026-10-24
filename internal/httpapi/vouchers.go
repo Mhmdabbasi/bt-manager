@@ -16,12 +16,17 @@ import (
 )
 
 type generateVouchersRequest struct {
-	Router      routerosadapter.TestRequest `json:"router"`
-	Prefix      string                      `json:"prefix"`
-	Count       int                         `json:"count"`
-	Profile     string                      `json:"profile"`
-	Server      string                      `json:"server"`
-	LimitUptime string                      `json:"limitUptime"`
+	Router          routerosadapter.TestRequest `json:"router"`
+	Prefix          string                      `json:"prefix"`
+	Count           int                         `json:"count"`
+	Profile         string                      `json:"profile"`
+	Server          string                      `json:"server"`
+	LimitUptime     string                      `json:"limitUptime"`
+	UsernameLength  int                         `json:"usernameLength"`
+	UsernameMode    string                      `json:"usernameMode"`
+	PasswordMode    string                      `json:"passwordMode"`
+	PasswordLength  int                         `json:"passwordLength"`
+	PasswordCharset string                      `json:"passwordCharset"`
 }
 
 type generateVouchersResponse struct {
@@ -49,6 +54,9 @@ func (s *Server) generateVouchers(w http.ResponseWriter, r *http.Request) {
 	input, err := routerosadapter.ValidateVoucherBatchInput(routerosadapter.VoucherBatchInput{
 		Reference: ref, Prefix: req.Prefix, Count: req.Count,
 		Profile: req.Profile, Server: req.Server, LimitUptime: req.LimitUptime,
+		UsernameLength: req.UsernameLength, UsernameMode: req.UsernameMode,
+		PasswordMode: req.PasswordMode, PasswordLength: req.PasswordLength,
+		PasswordCharset: req.PasswordCharset,
 	})
 	if err != nil || req.Router.Address == "" || req.Router.Username == "" || req.Router.Password == "" {
 		writeError(w, http.StatusBadRequest, "invalid_voucher_batch", "تحقق من العنوان وبيانات الراوتر والبادئة والعدد والملف التعريفي")
@@ -59,7 +67,10 @@ func (s *Server) generateVouchers(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	batch, err := s.app.DB.BeginVoucherBatch(ctx, store.NewVoucherBatch{
 		Reference: input.Reference, Prefix: input.Prefix, ProfileName: input.Profile,
-		ServerName: input.Server, LimitUptime: input.LimitUptime, RequestedCount: input.Count,
+		ServerName: input.Server, LimitUptime: input.LimitUptime,
+		UsernameLength: input.UsernameLength, UsernameMode: input.UsernameMode,
+		PasswordMode: input.PasswordMode, PasswordLength: input.PasswordLength,
+		PasswordCharset: input.PasswordCharset, RequestedCount: input.Count,
 	})
 	if err != nil {
 		s.logger.Error("create voucher batch failed", "error", err)
@@ -68,7 +79,7 @@ func (s *Server) generateVouchers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, generateErr := routerosadapter.GenerateHotSpotVouchers(ctx, req.Router, input, func(voucher routerosadapter.IssuedVoucher) error {
-		_, err := s.app.DB.AddVoucher(ctx, batch.ID, voucher.Username)
+		_, err := s.app.DB.AddVoucher(ctx, batch.ID, voucher.Username, voucher.Password)
 		return err
 	})
 	errorMessage := strings.TrimSpace(result.ErrorMessage)
