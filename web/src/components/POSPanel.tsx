@@ -82,8 +82,7 @@ export default function POSPanel({profiles,currencyCode,currencySymbol,onMessage
     await api.updateVoucherProduct(editingID,payload);
     onMessage('success','تم تحديث باقة البيع.');
    }else{
-    const {active:_,...createPayload}=payload;
-    await api.createVoucherProduct(createPayload);
+    await api.createVoucherProduct({name:payload.name,profileName:payload.profileName,priceMinor:payload.priceMinor});
     onMessage('success','تم إنشاء باقة البيع.');
    }
    resetProduct();
