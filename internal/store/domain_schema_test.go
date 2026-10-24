@@ -94,7 +94,7 @@ func TestCardDomainSchemaRelationshipsAndInvariants(t *testing.T) {
 		t.Fatal(err)
 	}
 	globalTemplateID, _ := globalTemplateResult.LastInsertId()
-	globalVersionResult, err := db.ExecContext(ctx, `INSERT INTO card_template_versions
+	_, err = db.ExecContext(ctx, `INSERT INTO card_template_versions
 		(template_id,version_number,card_width_mm,card_height_mm,design_json,page_layout_json,background_asset_id)
 		VALUES(?,1,50,19.1,'{"elements":[]}','{"paper":"A4","columns":4,"rows":15}',?)`, globalTemplateID, assetID)
 	if err != nil {
