@@ -287,7 +287,7 @@ func TestPOSSalesListInitiallyEmpty(t *testing.T) {
 	}
 }
 
-func TestPOSProductRequiresUniqueProfileAndServerPair(t *testing.T) {
+func TestPOSProductRequiresUniqueProfileServerAndTimeLimit(t *testing.T) {
 	handler := testHandler(t)
 	first := httptest.NewRecorder()
 	body1 := `{"name":"Default all","profileName":"default","serverName":"all","priceMinor":20000}`
@@ -304,9 +304,9 @@ func TestPOSProductRequiresUniqueProfileAndServerPair(t *testing.T) {
 	}
 
 	third := httptest.NewRecorder()
-	body3 := `{"name":"Default another server","profileName":"default","serverName":"hotspot2","priceMinor":30000}`
+	body3 := `{"name":"Default timed package","profileName":"default","serverName":"all","limitUptime":"1d00:00:00","priceMinor":30000}`
 	handler.ServeHTTP(third, jsonRequest(http.MethodPost, "/api/pos/products", body3))
 	if third.Code != http.StatusCreated {
-		t.Fatalf("different server product status %d: %s", third.Code, third.Body.String())
+		t.Fatalf("different time-limit product status %d: %s", third.Code, third.Body.String())
 	}
 }
