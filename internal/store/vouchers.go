@@ -94,10 +94,8 @@ func (db *DB) AddVoucher(ctx context.Context, batchID int64, username string) (V
 	return db.getVoucherByUsername(ctx, username)
 }
 
-func (db *DB) FinishVoucherBatch(ctx context.Context, id int64, failed int, message string) (VoucherBatch, error) {
-	if failed < 0 {
-		failed = 0
-	}
+func (db *DB) FinishVoucherBatch(ctx context.Context, id int64, reportedFailed int, message string) (VoucherBatch, error) {
+	_ = reportedFailed // The database inventory is authoritative when calculating failures.
 	var created, requested int
 	if err := db.QueryRowContext(ctx, `SELECT requested_count FROM voucher_batches WHERE id=?`, id).Scan(&requested); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -108,13 +106,14 @@ func (db *DB) FinishVoucherBatch(ctx context.Context, id int64, failed int, mess
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM vouchers WHERE batch_id=?`, id).Scan(&created); err != nil {
 		return VoucherBatch{}, err
 	}
-	if failed > requested-created {
-		failed = requested - created
+	failed := requested - created
+	if failed < 0 {
+		failed = 0
 	}
 	status := "completed"
 	if created == 0 {
 		status = "failed"
-	} else if created < requested || failed > 0 {
+	} else if created < requested {
 		status = "partial"
 	}
 	if _, err := db.ExecContext(ctx, `UPDATE voucher_batches SET created_count=?,failed_count=?,status=?,error_message=? WHERE id=?`,
