@@ -87,6 +87,7 @@ export interface VoucherProduct {
   id: number;
   name: string;
   profileName: string;
+  serverName: string;
   priceMinor: number;
   active: boolean;
   stockCount: number;
@@ -108,6 +109,7 @@ export interface POSSaleItem {
   productId: number;
   productName: string;
   profileName: string;
+  serverName: string;
   unitPriceMinor: number;
   currencyCode: string;
 }
