@@ -107,8 +107,8 @@ func validPasswordMode(mode string) bool {
 	}
 }
 
-// GenerateHotSpotVouchers creates username-only HotSpot accounts. It intentionally
-// omits the password attribute so RouterOS uses the username-only login workflow.
+// GenerateHotSpotVouchers creates HotSpot accounts using the selected credential policy.
+// It omits the password attribute only when PasswordMode is none.
 func GenerateHotSpotVouchers(
 	ctx context.Context,
 	request TestRequest,
