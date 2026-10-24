@@ -9,24 +9,30 @@ import (
 )
 
 type VoucherBatch struct {
-	ID            int64  `json:"id"`
-	Reference     string `json:"reference"`
-	Prefix        string `json:"prefix"`
-	ProfileName   string `json:"profileName"`
-	ServerName    string `json:"serverName"`
-	LimitUptime   string `json:"limitUptime"`
-	RequestedCount int   `json:"requestedCount"`
-	CreatedCount  int    `json:"createdCount"`
-	FailedCount   int    `json:"failedCount"`
-	Status        string `json:"status"`
-	ErrorMessage  string `json:"errorMessage,omitempty"`
-	CreatedAt     string `json:"createdAt"`
+	ID              int64  `json:"id"`
+	Reference       string `json:"reference"`
+	Prefix          string `json:"prefix"`
+	ProfileName     string `json:"profileName"`
+	ServerName      string `json:"serverName"`
+	LimitUptime     string `json:"limitUptime"`
+	UsernameLength  int    `json:"usernameLength"`
+	UsernameMode    string `json:"usernameMode"`
+	PasswordMode    string `json:"passwordMode"`
+	PasswordLength  int    `json:"passwordLength"`
+	PasswordCharset string `json:"passwordCharset"`
+	RequestedCount  int    `json:"requestedCount"`
+	CreatedCount    int    `json:"createdCount"`
+	FailedCount     int    `json:"failedCount"`
+	Status          string `json:"status"`
+	ErrorMessage    string `json:"errorMessage,omitempty"`
+	CreatedAt       string `json:"createdAt"`
 }
 
 type Voucher struct {
 	ID          int64  `json:"id"`
 	BatchID     int64  `json:"batchId"`
 	Username    string `json:"username"`
+	Password    string `json:"password,omitempty"`
 	ProfileName string `json:"profileName"`
 	ServerName  string `json:"serverName"`
 	LimitUptime string `json:"limitUptime"`
@@ -35,12 +41,17 @@ type Voucher struct {
 }
 
 type NewVoucherBatch struct {
-	Reference      string
-	Prefix         string
-	ProfileName    string
-	ServerName     string
-	LimitUptime    string
-	RequestedCount int
+	Reference       string
+	Prefix          string
+	ProfileName     string
+	ServerName      string
+	LimitUptime     string
+	UsernameLength  int
+	UsernameMode    string
+	PasswordMode    string
+	PasswordLength  int
+	PasswordCharset string
+	RequestedCount  int
 }
 
 var ErrVoucherBatchNotFound = errors.New("voucher batch not found")
@@ -51,6 +62,11 @@ func (db *DB) BeginVoucherBatch(ctx context.Context, batch NewVoucherBatch) (Vou
 	batch.ProfileName = strings.TrimSpace(batch.ProfileName)
 	batch.ServerName = strings.TrimSpace(batch.ServerName)
 	batch.LimitUptime = strings.TrimSpace(batch.LimitUptime)
+	if batch.UsernameLength == 0 { batch.UsernameLength = 8 }
+	if batch.UsernameMode == "" { batch.UsernameMode = "alphanumeric" }
+	if batch.PasswordMode == "" { batch.PasswordMode = "none" }
+	if batch.PasswordLength == 0 { batch.PasswordLength = 4 }
+	if batch.PasswordCharset == "" { batch.PasswordCharset = "alphanumeric" }
 	if batch.Reference == "" || batch.ProfileName == "" || batch.RequestedCount < 1 || batch.RequestedCount > 200 {
 		return VoucherBatch{}, errors.New("invalid voucher batch")
 	}
@@ -58,10 +74,12 @@ func (db *DB) BeginVoucherBatch(ctx context.Context, batch NewVoucherBatch) (Vou
 		batch.ServerName = "all"
 	}
 	result, err := db.ExecContext(ctx, `INSERT INTO voucher_batches
-		(reference,prefix,profile_name,server_name,limit_uptime,requested_count,status)
-		VALUES(?,?,?,?,?,?,'running')`,
+		(reference,prefix,profile_name,server_name,limit_uptime,username_length,username_mode,
+		password_mode,password_length,password_charset,requested_count,status)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,'running')`,
 		batch.Reference, batch.Prefix, batch.ProfileName, batch.ServerName,
-		batch.LimitUptime, batch.RequestedCount)
+		batch.LimitUptime, batch.UsernameLength, batch.UsernameMode, batch.PasswordMode,
+		batch.PasswordLength, batch.PasswordCharset, batch.RequestedCount)
 	if err != nil {
 		return VoucherBatch{}, fmt.Errorf("create voucher batch: %w", err)
 	}
@@ -72,8 +90,10 @@ func (db *DB) BeginVoucherBatch(ctx context.Context, batch NewVoucherBatch) (Vou
 	return db.GetVoucherBatch(ctx, id)
 }
 
-func (db *DB) AddVoucher(ctx context.Context, batchID int64, username string) (Voucher, error) {
+func (db *DB) AddVoucher(ctx context.Context, batchID int64, username string, passwords ...string) (Voucher, error) {
 	username = strings.TrimSpace(username)
+	password := ""
+	if len(passwords) > 0 { password = passwords[0] }
 	if batchID <= 0 || username == "" {
 		return Voucher{}, errors.New("invalid voucher")
 	}
@@ -87,8 +107,8 @@ func (db *DB) AddVoucher(ctx context.Context, batchID int64, username string) (V
 	if status != "running" {
 		return Voucher{}, errors.New("voucher batch is not running")
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO vouchers(batch_id,username,profile_name,server_name,limit_uptime) VALUES(?,?,?,?,?)`,
-		batchID, username, profile, server, uptime); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO vouchers(batch_id,username,password,profile_name,server_name,limit_uptime) VALUES(?,?,?,?,?,?)`,
+		batchID, username, password, profile, server, uptime); err != nil {
 		return Voucher{}, fmt.Errorf("save voucher %s: %w", username, err)
 	}
 	return db.getVoucherByUsername(ctx, username)
@@ -125,11 +145,13 @@ func (db *DB) FinishVoucherBatch(ctx context.Context, id int64, reportedFailed i
 
 func (db *DB) GetVoucherBatch(ctx context.Context, id int64) (VoucherBatch, error) {
 	var batch VoucherBatch
-	err := db.QueryRowContext(ctx, `SELECT id,reference,prefix,profile_name,server_name,limit_uptime,requested_count,
+	err := db.QueryRowContext(ctx, `SELECT id,reference,prefix,profile_name,server_name,limit_uptime,
+		username_length,username_mode,password_mode,password_length,password_charset,requested_count,
 		created_count,failed_count,status,error_message,created_at FROM voucher_batches WHERE id=?`, id).
 		Scan(&batch.ID, &batch.Reference, &batch.Prefix, &batch.ProfileName, &batch.ServerName,
-			&batch.LimitUptime, &batch.RequestedCount, &batch.CreatedCount, &batch.FailedCount,
-			&batch.Status, &batch.ErrorMessage, &batch.CreatedAt)
+			&batch.LimitUptime, &batch.UsernameLength, &batch.UsernameMode, &batch.PasswordMode,
+			&batch.PasswordLength, &batch.PasswordCharset, &batch.RequestedCount, &batch.CreatedCount,
+			&batch.FailedCount, &batch.Status, &batch.ErrorMessage, &batch.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return VoucherBatch{}, ErrVoucherBatchNotFound
 	}
@@ -140,7 +162,8 @@ func (db *DB) ListVoucherBatches(ctx context.Context, limit int) ([]VoucherBatch
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id,reference,prefix,profile_name,server_name,limit_uptime,requested_count,
+	rows, err := db.QueryContext(ctx, `SELECT id,reference,prefix,profile_name,server_name,limit_uptime,
+		username_length,username_mode,password_mode,password_length,password_charset,requested_count,
 		created_count,failed_count,status,error_message,created_at FROM voucher_batches ORDER BY id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -150,8 +173,9 @@ func (db *DB) ListVoucherBatches(ctx context.Context, limit int) ([]VoucherBatch
 	for rows.Next() {
 		var batch VoucherBatch
 		if err := rows.Scan(&batch.ID, &batch.Reference, &batch.Prefix, &batch.ProfileName, &batch.ServerName,
-			&batch.LimitUptime, &batch.RequestedCount, &batch.CreatedCount, &batch.FailedCount,
-			&batch.Status, &batch.ErrorMessage, &batch.CreatedAt); err != nil {
+			&batch.LimitUptime, &batch.UsernameLength, &batch.UsernameMode, &batch.PasswordMode,
+			&batch.PasswordLength, &batch.PasswordCharset, &batch.RequestedCount, &batch.CreatedCount,
+			&batch.FailedCount, &batch.Status, &batch.ErrorMessage, &batch.CreatedAt); err != nil {
 			return nil, err
 		}
 		batches = append(batches, batch)
@@ -160,7 +184,7 @@ func (db *DB) ListVoucherBatches(ctx context.Context, limit int) ([]VoucherBatch
 }
 
 func (db *DB) ListVouchersByBatch(ctx context.Context, batchID int64) ([]Voucher, error) {
-	rows, err := db.QueryContext(ctx, `SELECT id,batch_id,username,profile_name,server_name,limit_uptime,status,created_at
+	rows, err := db.QueryContext(ctx, `SELECT id,batch_id,username,password,profile_name,server_name,limit_uptime,status,created_at
 		FROM vouchers WHERE batch_id=? ORDER BY id LIMIT 200`, batchID)
 	if err != nil {
 		return nil, err
@@ -169,7 +193,7 @@ func (db *DB) ListVouchersByBatch(ctx context.Context, batchID int64) ([]Voucher
 	vouchers := make([]Voucher, 0)
 	for rows.Next() {
 		var voucher Voucher
-		if err := rows.Scan(&voucher.ID, &voucher.BatchID, &voucher.Username, &voucher.ProfileName,
+		if err := rows.Scan(&voucher.ID, &voucher.BatchID, &voucher.Username, &voucher.Password, &voucher.ProfileName,
 			&voucher.ServerName, &voucher.LimitUptime, &voucher.Status, &voucher.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -180,9 +204,9 @@ func (db *DB) ListVouchersByBatch(ctx context.Context, batchID int64) ([]Voucher
 
 func (db *DB) getVoucherByUsername(ctx context.Context, username string) (Voucher, error) {
 	var voucher Voucher
-	err := db.QueryRowContext(ctx, `SELECT id,batch_id,username,profile_name,server_name,limit_uptime,status,created_at
+	err := db.QueryRowContext(ctx, `SELECT id,batch_id,username,password,profile_name,server_name,limit_uptime,status,created_at
 		FROM vouchers WHERE username=?`, username).
-		Scan(&voucher.ID, &voucher.BatchID, &voucher.Username, &voucher.ProfileName,
+		Scan(&voucher.ID, &voucher.BatchID, &voucher.Username, &voucher.Password, &voucher.ProfileName,
 			&voucher.ServerName, &voucher.LimitUptime, &voucher.Status, &voucher.CreatedAt)
 	return voucher, err
 }
