@@ -147,15 +147,29 @@ func TestPOSProductStockIsScopedToHotSpotServer(t *testing.T) {
 
 	serverBatch, err := db.BeginVoucherBatch(ctx, NewVoucherBatch{
 		Reference: "VCH-SERVER-101", ProfileName: "default",
+		ServerName: "hotspot1", LimitUptime: "1d00:00:00", RequestedCount: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.AddVoucher(ctx, serverBatch.ID, "USER-HOTSPOT1-TIMED"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.FinishVoucherBatch(ctx, serverBatch.ID, 0, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	noLimitBatch, err := db.BeginVoucherBatch(ctx, NewVoucherBatch{
+		Reference: "VCH-SERVER-103", ProfileName: "default",
 		ServerName: "hotspot1", RequestedCount: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.AddVoucher(ctx, serverBatch.ID, "USER-HOTSPOT1"); err != nil {
+	if _, err := db.AddVoucher(ctx, noLimitBatch.ID, "USER-HOTSPOT1-NOLIMIT"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.FinishVoucherBatch(ctx, serverBatch.ID, 0, ""); err != nil {
+	if _, err := db.FinishVoucherBatch(ctx, noLimitBatch.ID, 0, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -174,8 +188,8 @@ func TestPOSProductStockIsScopedToHotSpotServer(t *testing.T) {
 	}
 
 	product, err := db.CreateVoucherProduct(ctx, VoucherProductInput{
-		Name: "Hotspot 1 pack", ProfileName: "default", ServerName: "hotspot1",
-		PriceMinor: 15000, Active: true,
+		Name: "Hotspot 1 timed pack", ProfileName: "default", ServerName: "hotspot1",
+		LimitUptime: "1d00:00:00", PriceMinor: 15000, Active: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -187,7 +201,7 @@ func TestPOSProductStockIsScopedToHotSpotServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(sale.Items) != 1 || sale.Items[0].Username != "USER-HOTSPOT1" || sale.Items[0].ServerName != "hotspot1" {
+	if len(sale.Items) != 1 || sale.Items[0].Username != "USER-HOTSPOT1-TIMED" || sale.Items[0].ServerName != "hotspot1" || sale.Items[0].LimitUptime != "1d00:00:00" {
 		t.Fatalf("POS sold a voucher from the wrong HotSpot server: %+v", sale.Items)
 	}
 }
