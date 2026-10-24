@@ -35,7 +35,10 @@ func CreateHotSpotUser(ctx context.Context, request TestRequest, user HotSpotUse
 	if err != nil {
 		return err
 	}
-	args := []string{"=name=" + user.Name, "=password=" + user.Password}
+	args := []string{"=name=" + user.Name}
+	if user.Password != "" {
+		args = append(args, "=password="+user.Password)
+	}
 	appendIfSet := func(key, value string) {
 		if value != "" {
 			args = append(args, "="+key+"="+value)
@@ -129,7 +132,7 @@ func normalizeUser(user HotSpotUserInput, creating bool) (HotSpotUserInput, erro
 	user.LimitUptime = strings.TrimSpace(user.LimitUptime)
 	user.Comment = strings.TrimSpace(user.Comment)
 	if creating {
-		if user.Name == "" || user.Password == "" {
+		if user.Name == "" {
 			return HotSpotUserInput{}, ErrInvalidRequest
 		}
 	} else if !validRouterOSID(user.ID) || user.Name == "" {
