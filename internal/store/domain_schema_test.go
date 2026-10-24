@@ -94,11 +94,25 @@ func TestCardDomainSchemaRelationshipsAndInvariants(t *testing.T) {
 		t.Fatal(err)
 	}
 	globalTemplateID, _ := globalTemplateResult.LastInsertId()
-	_, err = db.ExecContext(ctx, `INSERT INTO card_template_versions
+	globalVersionResult, err := db.ExecContext(ctx, `INSERT INTO card_template_versions
 		(template_id,version_number,card_width_mm,card_height_mm,design_json,page_layout_json,background_asset_id)
 		VALUES(?,1,50,19.1,'{"elements":[]}','{"paper":"A4","columns":4,"rows":15}',?)`, globalTemplateID, assetID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	globalVersionID, err := globalVersionResult.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE design_assets SET original_name='changed.png' WHERE id=?`, assetID); err == nil {
+		t.Fatal("asset referenced by an immutable template version was modified")
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE card_templates SET active=0,is_default=0 WHERE id=?`, globalTemplateID); err != nil {
+		t.Fatalf("archiving a default template failed: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO card_templates(package_id,scope_kind,name,is_default)
+		VALUES(?,'global','Replacement default',1)`, packageID); err != nil {
+		t.Fatalf("replacement default template was rejected after archiving the prior one: %v", err)
 	}
 
 	posTemplateResult, err := db.ExecContext(ctx, `INSERT INTO card_templates
@@ -115,6 +129,9 @@ func TestCardDomainSchemaRelationshipsAndInvariants(t *testing.T) {
 		t.Fatal(err)
 	}
 	posVersionID, _ := posVersionResult.LastInsertId()
+	if _, err := db.ExecContext(ctx, `UPDATE card_templates SET point_of_sale_id=? WHERE id=?`, otherPosID, posTemplateID); err == nil {
+		t.Fatal("versioned template scope was allowed to change")
+	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO point_of_sale_packages
 		(point_of_sale_id,package_id,prefix_override,template_id_override)
 		VALUES(?,?,?,?)`, posID, packageID, "SHOP-", posTemplateID); err != nil {
@@ -148,6 +165,19 @@ func TestCardDomainSchemaRelationshipsAndInvariants(t *testing.T) {
 		(reference,movement_type,batch_id,package_id,to_point_of_sale_id,quantity)
 		VALUES('STOCK-001','allocate',?,?,?,1)`, batchID, packageID, posID); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE voucher_stock_movements SET note='correction' WHERE reference='STOCK-001'`); err == nil {
+		t.Fatal("append-only stock movement ledger accepted an update")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO print_jobs
+		(reference,batch_id,template_version_id,job_kind,status,page_count,card_count)
+		VALUES('PRINT-DOMAIN-001',?,?,'initial','completed',1,1)`, batchID, posVersionID); err != nil {
+		t.Fatalf("valid print job failed: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO print_jobs
+		(reference,batch_id,template_version_id,job_kind,status,page_count,card_count)
+		VALUES('PRINT-WRONG-VERSION',?,?,'reprint','completed',1,1)`, batchID, globalVersionID); err == nil {
+		t.Fatal("print job accepted a template version different from its batch snapshot")
 	}
 
 	var mode string
