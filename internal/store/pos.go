@@ -158,6 +158,30 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 	}
 	defer tx.Rollback()
 
+	// A retried request with the same sale reference is idempotent. Return the
+	// original receipt only when the product, quantity, and payment method match.
+	var existingID int64
+	var existingPayment string
+	err = tx.QueryRowContext(ctx, `SELECT id,payment_method FROM pos_sales WHERE reference=?`, reference).
+		Scan(&existingID, &existingPayment)
+	if err == nil {
+		var itemCount int
+		var minProduct, maxProduct sql.NullInt64
+		if err := tx.QueryRowContext(ctx, `SELECT count(*),min(product_id),max(product_id) FROM pos_sale_items WHERE sale_id=?`, existingID).
+			Scan(&itemCount, &minProduct, &maxProduct); err != nil {
+			return POSSaleResult{}, err
+		}
+		_ = tx.Rollback()
+		if itemCount != quantity || !minProduct.Valid || !maxProduct.Valid ||
+			minProduct.Int64 != productID || maxProduct.Int64 != productID || existingPayment != paymentMethod {
+			return POSSaleResult{}, ErrInvalidPOSSale
+		}
+		return db.GetPOSSale(ctx, existingID)
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return POSSaleResult{}, err
+	}
+
 	var currency string
 	if err := tx.QueryRowContext(ctx, `SELECT value FROM app_settings WHERE key='currency_code'`).Scan(&currency); err != nil {
 		return POSSaleResult{}, err
