@@ -1,6 +1,7 @@
 import {useState,type FormEvent} from 'react';
 import {api} from '../api';
 import VoucherStudio from './VoucherStudio';
+import POSPanel from './POSPanel';
 import type {HotSpotOverview,HotSpotUser} from '../types';
 
 type RouterConnection={address:string;port:number;username:string;password:string;useTls:boolean};
@@ -9,6 +10,8 @@ type Props={
  router:RouterConnection;
  overview:HotSpotOverview;
  businessName:string;
+ currencyCode:string;
+ currencySymbol:string;
  onRefresh:()=>Promise<void>;
  onMessage:(kind:FlashKind,message:string)=>void;
 };
@@ -18,7 +21,7 @@ type ProfileForm={name:string;rateLimit:string;sharedUsers:string;sessionTimeout
 const emptyUser:UserForm={name:'',password:'',profile:'default',server:'all',limitUptime:'',comment:''};
 const emptyProfile:ProfileForm={name:'',rateLimit:'',sharedUsers:'1',sessionTimeout:'',idleTimeout:''};
 
-export default function HotSpotManager({router,overview,businessName,onRefresh,onMessage}:Props){
+export default function HotSpotManager({router,overview,businessName,currencyCode,currencySymbol,onRefresh,onMessage}:Props){
  const [userForm,setUserForm]=useState<UserForm>(emptyUser);
  const [editingUserId,setEditingUserId]=useState('');
  const [profileForm,setProfileForm]=useState<ProfileForm>(emptyProfile);
@@ -103,6 +106,7 @@ export default function HotSpotManager({router,overview,businessName,onRefresh,o
   </div>
 
   <VoucherStudio router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage}/>
+  <POSPanel profiles={overview.profiles} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>
 
   <section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>مستخدمو HotSpot</h3><span>{overview.counts.users} حساب</span></div>
