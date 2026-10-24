@@ -1,5 +1,6 @@
 import {useState,type FormEvent} from 'react';
 import {api} from '../api';
+import VoucherStudio from './VoucherStudio';
 import type {HotSpotOverview,HotSpotUser} from '../types';
 
 type RouterConnection={address:string;port:number;username:string;password:string;useTls:boolean};
@@ -7,6 +8,7 @@ type FlashKind='success'|'danger';
 type Props={
  router:RouterConnection;
  overview:HotSpotOverview;
+ businessName:string;
  onRefresh:()=>Promise<void>;
  onMessage:(kind:FlashKind,message:string)=>void;
 };
@@ -16,7 +18,7 @@ type ProfileForm={name:string;rateLimit:string;sharedUsers:string;sessionTimeout
 const emptyUser:UserForm={name:'',password:'',profile:'default',server:'all',limitUptime:'',comment:''};
 const emptyProfile:ProfileForm={name:'',rateLimit:'',sharedUsers:'1',sessionTimeout:'',idleTimeout:''};
 
-export default function HotSpotManager({router,overview,onRefresh,onMessage}:Props){
+export default function HotSpotManager({router,overview,businessName,onRefresh,onMessage}:Props){
  const [userForm,setUserForm]=useState<UserForm>(emptyUser);
  const [editingUserId,setEditingUserId]=useState('');
  const [profileForm,setProfileForm]=useState<ProfileForm>(emptyProfile);
@@ -99,6 +101,8 @@ export default function HotSpotManager({router,overview,onRefresh,onMessage}:Pro
    </div>
    {overview.truncated&&<p className="small text-secondary mt-3 mb-0">تظهر معاينة لأول {overview.previewLimit} عنصر من كل قائمة؛ الأعداد أعلاه تمثل العدد الكامل على الراوتر.</p>}
   </div>
+
+  <VoucherStudio router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage}/>
 
   <section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>مستخدمو HotSpot</h3><span>{overview.counts.users} حساب</span></div>
