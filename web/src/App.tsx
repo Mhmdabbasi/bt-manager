@@ -120,7 +120,7 @@ export default function App(){
  async function save(event:FormEvent){
   event.preventDefault();setSaving(true);setFlash(null);
   try{setSettings(await api.saveSettings(settings));setFlash({kind:'success',message:t(language,'تم حفظ إعدادات النشاط والعملة.')})}
-  catch(error){setFlash({kind:'danger',message:(error as Error).message})}
+  catch(error){setFlash({kind:'danger',message:t(language,(error as Error).message)})}
   finally{setSaving(false)}
  }
  async function testRouter(event:FormEvent){
@@ -128,7 +128,7 @@ export default function App(){
   try{
    const result=await api.testRouter(router);setInfo(result.router);
    setFlash({kind:'success',message:formatT(language,'تم الاتصال بالراوتر {identity} بنجاح.',{identity:result.router.identity||router.address})});
-  }catch(error){setFlash({kind:'danger',message:(error as Error).message})}
+  }catch(error){setFlash({kind:'danger',message:t(language,(error as Error).message)})}
   finally{setTesting(false)}
  }
  async function loadHotspot(showMessage=true){
@@ -136,7 +136,7 @@ export default function App(){
   try{
    const result=await api.hotspotOverview(router);setHotspot(result);
    if(showMessage)setFlash({kind:'success',message:formatT(language,'تمت قراءة بيانات HotSpot: {users} مستخدم و{sessions} جلسة نشطة.',{users:result.counts.users,sessions:result.counts.activeSessions})});
-  }catch(error){setFlash({kind:'danger',message:(error as Error).message})}
+  }catch(error){setFlash({kind:'danger',message:t(language,(error as Error).message)})}
   finally{setLoadingHotspot(false)}
  }
  function navigate(nextPage:Page){
@@ -176,7 +176,7 @@ export default function App(){
    {flash&&<div className={`alert alert-${flash.kind} d-flex align-items-center gap-2`} role="alert"><i className={flash.kind==='success'?'bi bi-check-circle':'bi bi-exclamation-triangle'}/><div>{flash.message}</div><button type="button" className="btn-close me-auto" onClick={()=>setFlash(null)} aria-label={t(language,'إغلاق')}/></div>}
 
    {page==='dashboard'&&<div className="dashboard-page">
-    <section className="welcome-panel"><div className="welcome-copy"><span className="pill">{t(language,"مساحة عمل موحدة")}</span><h2>{t(language,"إدارة الشبكة من مكان واحد")}</h2><p>{t(language,"تنقل بين مستخدمي HotSpot ودفعات الكروت ونقطة البيع عبر صفحات مستقلة، مع الإبقاء على واجهة عربية واضحة.")}</p><div className="setup-steps"><span className={settings.setupComplete?'step-done':''}><i className={`bi ${settings.setupComplete?'bi-check2-circle':'bi-circle'}`}/> إعداد النشاط</span><span className={info?'step-done':''}><i className={`bi ${info?'bi-check2-circle':'bi-circle'}`}/> اختبار الراوتر</span><span className={hotspot?'step-done':''}><i className={`bi ${hotspot?'bi-check2-circle':'bi-circle'}`}/> قراءة HotSpot</span></div></div><div className="welcome-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><i className="bi bi-router-fill"/><span className="signal signal-a"/><span className="signal signal-b"/><span className="signal signal-c"/></div></section>
+    <section className="welcome-panel"><div className="welcome-copy"><span className="pill">{t(language,"مساحة عمل موحدة")}</span><h2>{t(language,"إدارة الشبكة من مكان واحد")}</h2><p>{t(language,"تنقل بين مستخدمي HotSpot ودفعات الكروت ونقطة البيع عبر صفحات مستقلة، مع الإبقاء على واجهة عربية واضحة.")}</p><div className="setup-steps"><span className={settings.setupComplete?'step-done':''}><i className={`bi ${settings.setupComplete?'bi-check2-circle':'bi-circle'}`}/> {t(language,'إعداد النشاط')}</span><span className={info?'step-done':''}><i className={`bi ${info?'bi-check2-circle':'bi-circle'}`}/> {t(language,'اختبار الراوتر')}</span><span className={hotspot?'step-done':''}><i className={`bi ${hotspot?'bi-check2-circle':'bi-circle'}`}/> {t(language,'قراءة HotSpot')}</span></div></div><div className="welcome-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><i className="bi bi-router-fill"/><span className="signal signal-a"/><span className="signal signal-b"/><span className="signal signal-c"/></div></section>
     <div className="section-heading"><div><h2>{t(language,"حالة الشبكة")}</h2><p>{t(language,"تتحدث المؤشرات بعد الاتصال وقراءة بيانات الراوتر.")}</p></div><button className="btn btn-outline-primary" type="button" onClick={()=>navigate('settings')}>{t(language,'الإعدادات والاتصال')} <i className="bi bi-arrow-left ms-1"/></button></div>
     {hotspot?<div className="row g-3 dashboard-stat-grid">
      {[{label:'مستخدمو HotSpot',value:hotspot.counts.users,icon:'bi-people-fill',page:'hotspot-users' as Page},{label:'الملفات التعريفية',value:hotspot.counts.profiles,icon:'bi-speedometer2',page:'hotspot-profiles' as Page},{label:'الجلسات النشطة',value:hotspot.counts.activeSessions,icon:'bi-activity',page:'hotspot-sessions' as Page},{label:'خوادم HotSpot',value:hotspot.counts.servers,icon:'bi-wifi',page:'hotspot-servers' as Page}].map(stat=><div className="col-6 col-xl-3" key={stat.label}><button type="button" className="dashboard-stat w-100" onClick={()=>navigate(stat.page)}><span className="dashboard-stat-icon"><i className={`bi ${stat.icon}`}/></span><small>{t(language,stat.label)}</small><strong>{stat.value}</strong><span className="dashboard-stat-link">{t(language,'افتح القسم')} <i className="bi bi-arrow-left"/></span></button></div>)}
