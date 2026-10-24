@@ -111,3 +111,55 @@
  body.print-pos-receipt #posReceiptPrintRoot .table{font-size:9pt!important}
  body.print-pos-receipt #posReceiptPrintRoot .pos-receipt-total strong{font-size:15pt!important}
 }
+
+
+/* App shell v2: real navigation and focused workspaces */
+.sidebar{overflow-y:auto;z-index:30}
+.sidebar-nav{display:flex;flex-direction:column;gap:4px;min-height:0}
+.nav-group{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.nav-entry-button{width:100%;font-family:inherit;font-size:12px;text-align:right;border:0;background:transparent;cursor:pointer;flex:0 0 auto}
+.nav-entry-button span{flex:1;min-width:0}
+.nav-entry-button .soon{font-size:9px;white-space:nowrap}
+.dashboard-stat-grid{margin-bottom:12px}
+.dashboard-stat{display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:right;background:#fff;border:1px solid #e5edf4;border-radius:15px;padding:17px;min-height:154px;box-shadow:0 5px 18px #1d355508;transition:transform .16s ease,border-color .16s ease}
+.dashboard-stat:hover{transform:translateY(-2px);border-color:#b9dce8}
+.dashboard-stat-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#e5f6f9;color:#168ba7;font-size:17px}
+.dashboard-stat small{font-size:11px;color:#8292a5}
+.dashboard-stat strong{font-size:24px;color:#20334a;line-height:1}
+.dashboard-stat-link{font-size:10px;color:#168ba5;margin-top:auto}
+.dashboard-shortcut{display:flex;align-items:center;gap:13px;text-align:right;padding:17px;background:#fff;border:1px solid #e6edf4;border-radius:13px;color:#197f9f;min-height:88px}
+.dashboard-shortcut>i:first-child{font-size:22px;background:#e8f7fa;border-radius:11px;width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px}
+.dashboard-shortcut>span{display:flex;flex-direction:column;gap:5px;flex:1}
+.dashboard-shortcut strong{font-size:12px;color:#2b3b50}
+.dashboard-shortcut small{font-size:10px;color:#8998a9;line-height:1.7}
+.dashboard-shortcut:hover{background:#fbfeff;border-color:#b6dfea}
+.dashboard-setup-card{margin-bottom:13px}
+.empty-router-state,.user-manager-placeholder{margin-top:10px;padding:30px}
+.empty-router-state .panel-icon,.user-manager-placeholder .panel-icon{margin-bottom:15px}
+.empty-router-state h2,.user-manager-placeholder h2{font-size:17px;font-weight:700;color:#26364b}
+.empty-router-state p,.user-manager-placeholder>p{font-size:12px;line-height:1.9;color:#8090a4;max-width:760px}
+.status-pill-development{display:inline-flex;background:#fff2d8;color:#9b670e;padding:5px 9px;border-radius:20px;font-size:10px;font-weight:700;margin-bottom:12px}
+.settings-grid .panel{height:100%}
+@media(max-width:900px){
+ .app-shell{display:block}
+ .sidebar{position:sticky;top:0;height:auto;min-height:0;padding:12px 14px;background:#111e30;overflow:visible}
+ .brand{padding:0 6px 10px}
+ .brand-mark{width:35px;height:35px;border-radius:11px}
+ .brand strong{font-size:16px}
+ .sidebar-nav{flex-direction:row;align-items:stretch;overflow-x:auto;gap:7px;padding:0 0 3px;scrollbar-width:thin}
+ .nav-group{display:contents}
+ .sidebar-label{display:none}
+ .nav-entry,.nav-entry-button{display:flex;white-space:nowrap;width:auto;margin:0;padding:9px 11px;border-radius:9px;font-size:11px}
+ .nav-entry i{font-size:15px}
+ .nav-entry-button .soon{display:none}
+ .sidebar-bottom{display:none}
+ .main-content{padding:22px 18px}
+ .welcome-art{display:none}
+ .welcome-panel{min-height:0}
+}
+@media(max-width:520px){
+ .dashboard-stat{padding:12px;min-height:140px}
+ .dashboard-stat strong{font-size:21px}
+ .dashboard-shortcut{padding:13px}
+ .empty-router-state,.user-manager-placeholder{padding:20px}
+}
