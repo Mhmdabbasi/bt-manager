@@ -1,4 +1,4 @@
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
  let response:Response;
@@ -30,4 +30,11 @@ export const api={
  generateVouchers:(payload:{router:{address:string;port:number;username:string;password:string;useTls:boolean};prefix:string;count:number;profile:string;server:string;limitUptime:string})=>request<VoucherBatchResult>('/api/router/hotspot/vouchers/generate',{method:'POST',body:JSON.stringify(payload),signal:AbortSignal.timeout(120000)}),
  voucherBatches:()=>request<{batches:VoucherBatch[]}>('/api/vouchers/batches'),
  voucherBatch:(id:number)=>request<VoucherBatchResult>('/api/vouchers/batches/'+id),
+
+ voucherProducts:(includeInactive=true)=>request<{products:VoucherProduct[]}>('/api/pos/products?includeInactive='+String(includeInactive)),
+ createVoucherProduct:(payload:{name:string;profileName:string;priceMinor:number})=>request<VoucherProduct>('/api/pos/products',{method:'POST',body:JSON.stringify(payload)}),
+ updateVoucherProduct:(id:number,payload:{name:string;profileName:string;priceMinor:number;active:boolean})=>request<VoucherProduct>('/api/pos/products/'+id,{method:'PUT',body:JSON.stringify(payload)}),
+ posSales:()=>request<{sales:POSSale[]}>('/api/pos/sales'),
+ createPOSSale:(payload:{requestId:string;productId:number;quantity:number;paymentMethod:'cash'|'transfer'|'card'|'other'})=>request<POSSaleResult>('/api/pos/sales',{method:'POST',body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)}),
+ posSale:(id:number)=>request<POSSaleResult>('/api/pos/sales/'+id),
 };
