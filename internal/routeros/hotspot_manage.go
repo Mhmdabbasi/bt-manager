@@ -35,6 +35,11 @@ func CreateHotSpotUser(ctx context.Context, request TestRequest, user HotSpotUse
 	if err != nil {
 		return err
 	}
+	args := hotSpotUserCreateArgs(user)
+	return runHotSpotMutation(ctx, request, "/ip/hotspot/user/add", args...)
+}
+
+func hotSpotUserCreateArgs(user HotSpotUserInput) []string {
 	args := []string{"=name=" + user.Name}
 	if user.Password != "" {
 		args = append(args, "=password="+user.Password)
@@ -48,7 +53,7 @@ func CreateHotSpotUser(ctx context.Context, request TestRequest, user HotSpotUse
 	appendIfSet("server", user.Server)
 	appendIfSet("limit-uptime", user.LimitUptime)
 	appendIfSet("comment", user.Comment)
-	return runHotSpotMutation(ctx, request, "/ip/hotspot/user/add", args...)
+	return args
 }
 
 func UpdateHotSpotUser(ctx context.Context, request TestRequest, user HotSpotUserInput) error {
