@@ -191,7 +191,7 @@ func profileArgs(profile HotSpotProfileInput, includeEmpty bool) []string {
 }
 
 func validRouterOSID(id string) bool {
-	return routerOSIDPattern.MatchString(strings.TrimSpace(id))
+	return routerOSIDPattern.MatchString(id)
 }
 
 func validText(value string, maxRunes int) bool {
