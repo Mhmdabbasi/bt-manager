@@ -143,3 +143,35 @@ func TestHotSpotOverviewRejectsCrossSiteRequest(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestHotSpotUserCreateRejectsMissingPassword(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":"voucher-1"}}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/create", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "router-secret") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestHotSpotUserDeleteRejectsInvalidID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"id":"*1; /system/reboot"}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/delete", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHotSpotMutationRejectsCrossSiteRequest(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/router/hotspot/users/create",
+		`{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"unused","useTls":false},"user":{"name":"voucher-1","password":"pass"}}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
