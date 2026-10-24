@@ -6,12 +6,14 @@ import type {HotSpotOverview,HotSpotUser} from '../types';
 
 type RouterConnection={address:string;port:number;username:string;password:string;useTls:boolean};
 type FlashKind='success'|'danger';
+type View='all'|'users'|'profiles'|'sessions'|'servers'|'vouchers'|'pos';
 type Props={
  router:RouterConnection;
  overview:HotSpotOverview;
  businessName:string;
  currencyCode:string;
  currencySymbol:string;
+ view?:View;
  onRefresh:()=>Promise<void>;
  onMessage:(kind:FlashKind,message:string)=>void;
 };
@@ -21,7 +23,7 @@ type ProfileForm={name:string;rateLimit:string;sharedUsers:string;sessionTimeout
 const emptyUser:UserForm={name:'',password:'',profile:'default',server:'all',limitUptime:'',comment:''};
 const emptyProfile:ProfileForm={name:'',rateLimit:'',sharedUsers:'1',sessionTimeout:'',idleTimeout:''};
 
-export default function HotSpotManager({router,overview,businessName,currencyCode,currencySymbol,onRefresh,onMessage}:Props){
+export default function HotSpotManager({router,overview,businessName,currencyCode,currencySymbol,view='all',onRefresh,onMessage}:Props){
  const [userForm,setUserForm]=useState<UserForm>(emptyUser);
  const [editingUserId,setEditingUserId]=useState('');
  const [profileForm,setProfileForm]=useState<ProfileForm>(emptyProfile);
@@ -105,10 +107,10 @@ export default function HotSpotManager({router,overview,businessName,currencyCod
    {overview.truncated&&<p className="small text-secondary mt-3 mb-0">تظهر معاينة لأول {overview.previewLimit} عنصر من كل قائمة؛ الأعداد أعلاه تمثل العدد الكامل على الراوتر.</p>}
   </div>
 
-  <VoucherStudio router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage}/>
-  <POSPanel profiles={overview.profiles} servers={overview.servers} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>
+  {(view==='all'||view==='vouchers')&&<VoucherStudio router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage}/>}
+  {(view==='all'||view==='pos')&&<POSPanel profiles={overview.profiles} servers={overview.servers} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>}>
 
-  <section className="hotspot-management-section">
+  {(view==='all'||view==='users')&&(<section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>مستخدمو HotSpot</h3><span>{overview.counts.users} حساب</span></div>
    <form className="hotspot-editor" onSubmit={submitUser}>
     <h4>{editingUserId?'تعديل حساب':'إنشاء حساب جديد'}</h4>
@@ -126,9 +128,9 @@ export default function HotSpotManager({router,overview,businessName,currencyCod
     {overview.users.map(user=><tr key={user.id||user.name}><td>{user.name||'—'}</td><td>{user.profile||'default'}</td><td>{user.server||'all'}</td><td>{user.limitUptime||'—'}</td><td><span className={user.disabled?'text-danger':'text-success'}>{user.disabled?'معطّل':'مفعّل'}</span></td><td><div className="d-flex flex-wrap gap-1"><button className="btn btn-sm btn-outline-secondary" disabled={busy||!user.id} onClick={()=>editUser(user)}>تعديل</button><button className="btn btn-sm btn-outline-primary" disabled={busy||!user.id} onClick={()=>void changeUserState(user)}>{user.disabled?'تفعيل':'تعطيل'}</button><button className="btn btn-sm btn-outline-danger" disabled={busy||!user.id} onClick={()=>void removeUser(user)}>حذف</button></div></td></tr>)}
     {!overview.users.length&&<tr><td colSpan={6} className="text-center text-secondary py-3">لا توجد حسابات مستخدمين في القائمة.</td></tr>}
    </tbody></table></div>
-  </section>
+  </section>)}
 
-  <section className="hotspot-management-section">
+  {(view==='all'||view==='profiles')&&(<section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>الملفات التعريفية</h3><span>{overview.counts.profiles} ملف</span></div>
    <form className="hotspot-editor" onSubmit={submitProfile}>
     <h4>{editingProfileId?'تعديل ملف تعريفي':'إنشاء ملف تعريفي'}</h4>
@@ -145,22 +147,22 @@ export default function HotSpotManager({router,overview,businessName,currencyCod
     {overview.profiles.map(profile=><tr key={profile.id||profile.name}><td>{profile.name||'—'}</td><td>{profile.rateLimit||'—'}</td><td>{profile.sharedUsers||'—'}</td><td>{profile.sessionTimeout||'—'}</td><td>{profile.idleTimeout||'—'}</td><td><div className="d-flex flex-wrap gap-1"><button className="btn btn-sm btn-outline-secondary" disabled={busy||!profile.id} onClick={()=>{setEditingProfileId(profile.id);setProfileForm({name:profile.name,rateLimit:profile.rateLimit,sharedUsers:profile.sharedUsers||'1',sessionTimeout:profile.sessionTimeout,idleTimeout:profile.idleTimeout});}}>تعديل</button><button className="btn btn-sm btn-outline-danger" disabled={busy||!profile.id} onClick={()=>void removeProfile(profile.id,profile.name)}>حذف</button></div></td></tr>)}
     {!overview.profiles.length&&<tr><td colSpan={6} className="text-center text-secondary py-3">لا توجد ملفات تعريفية في القائمة.</td></tr>}
    </tbody></table></div>
-  </section>
+  </section>)}
 
-  <section className="hotspot-management-section">
+  {(view==='all'||view==='sessions')&&(<section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>الجلسات النشطة</h3><span>{overview.counts.activeSessions} جلسة</span></div>
    <div className="table-responsive"><table className="table table-sm align-middle hotspot-data-table"><thead><tr><th>المستخدم</th><th>عنوان IP</th><th>عنوان MAC</th><th>مدة الاتصال</th><th>الخادم</th></tr></thead><tbody>
     {overview.activeSessions.map(row=><tr key={row.id||row.user+row.address}><td>{row.user||'—'}</td><td dir="ltr">{row.address||'—'}</td><td dir="ltr">{row.macAddress||'—'}</td><td>{row.uptime||'—'}</td><td>{row.server||'—'}</td></tr>)}
     {!overview.activeSessions.length&&<tr><td colSpan={5} className="text-center text-secondary py-3">لا توجد جلسات نشطة حاليًا.</td></tr>}
    </tbody></table></div>
-  </section>
+  </section>)}
 
-  <section className="hotspot-management-section">
+  {(view==='all'||view==='servers')&&(<section className="hotspot-management-section">
    <div className="hotspot-section-title"><h3>خوادم HotSpot</h3><span>{overview.counts.servers} خادم</span></div>
    <div className="table-responsive"><table className="table table-sm align-middle hotspot-data-table"><thead><tr><th>الاسم</th><th>الواجهة</th><th>مجمع العناوين</th><th>الملف</th><th>الحالة</th></tr></thead><tbody>
     {overview.servers.map(row=><tr key={row.name}><td>{row.name||'—'}</td><td>{row.interface||'—'}</td><td>{row.addressPool||'—'}</td><td>{row.profile||'—'}</td><td><span className={row.disabled?'text-danger':'text-success'}>{row.disabled?'معطّل':'مفعّل'}</span></td></tr>)}
     {!overview.servers.length&&<tr><td colSpan={5} className="text-center text-secondary py-3">لم يتم إعداد خادم HotSpot على هذا الراوتر.</td></tr>}
    </tbody></table></div>
-  </section>
+  </section>)}
  </div>;
 }
