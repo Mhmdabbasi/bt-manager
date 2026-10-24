@@ -225,6 +225,13 @@ const english: Record<string, string> = {
   'تم حذف حساب HotSpot':'HotSpot user deleted','تم تحديث الملف التعريفي':'Profile updated',
   'تم إنشاء الملف التعريفي':'Profile created','تم حذف الملف التعريفي':'Profile deleted',
 
+
+  'إغلاق':'Close',
+  'الباقة':'Package',
+  'حفظ التغييرات':'Save changes',
+  'لم تكتمل الدفعة بالكامل.':'The batch was not fully completed.',
+  'مثال: 4M/10M':'e.g. 4M/10M',
+
 };
 
 export function t(language: Language, text: string): string {
