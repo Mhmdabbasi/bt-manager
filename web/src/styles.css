@@ -26,3 +26,41 @@
 .hotspot-count small{display:block;color:#8494a8;font-size:10px;margin-bottom:7px}
 .hotspot-count strong{display:block;color:#197fa8;font-size:21px;line-height:1.1}
 @media(max-width:600px){.hotspot-editor{padding:11px}.hotspot-section-title h3{font-size:13px}}
+
+/* Voucher generator and print-ready A4 cards */
+.voucher-studio{min-width:0}
+.voucher-studio .hotspot-section-title>div{min-width:0}
+.voucher-studio .form-select.form-control{padding-top:10px;padding-bottom:10px}
+.voucher-print-settings{margin-top:22px;padding-top:20px;border-top:1px solid #e9eff5}
+.voucher-preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.voucher-card{--voucher-accent:#147f9f;position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;min-width:0;min-height:104px;padding:10px;border:1px dashed var(--voucher-accent);border-radius:10px;background-color:#f6fbfc;background-size:cover;background-position:center;color:#23364a;box-shadow:0 2px 6px #193d570c}
+.voucher-card:before{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(135deg,#fffefaed,#edf8fbdf)}
+.voucher-card-head{display:flex;align-items:start;justify-content:space-between;gap:6px;border-bottom:1px solid color-mix(in srgb,var(--voucher-accent) 28%,white);padding-bottom:5px}
+.voucher-card-head strong{font-size:11px;line-height:1.4;color:var(--voucher-accent);overflow-wrap:anywhere}
+.voucher-card-head span{font-size:6px;letter-spacing:.8px;color:#8395a6;white-space:nowrap}
+.voucher-code-label{font-size:8px;color:#7e8fa1;margin-top:7px}
+.voucher-code{font-family:Consolas,"Courier New",monospace;font-size:16px;font-weight:800;letter-spacing:1.3px;line-height:1.4;color:#172f44;overflow-wrap:anywhere}
+.voucher-card-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:3px;margin-top:auto;padding-top:6px;font-size:7px;color:#718298}
+.voucher-card-note{font-size:7px;color:#687b90;margin-top:4px;overflow-wrap:anywhere}
+.voucher-batch-history{max-width:680px}
+.voucher-preview-wrap{padding:12px;border:1px solid #e8eef4;border-radius:12px;background:#fbfcfe}
+.voucher-print-root{display:none}
+@media(max-width:760px){.voucher-preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.voucher-card{min-height:100px;padding:8px}.voucher-code{font-size:14px}}
+@page{size:A4 portrait;margin:5mm}
+@media print{
+ html,body{width:200mm!important;margin:0!important;padding:0!important;background:#fff!important;overflow:visible!important}
+ body *{visibility:hidden!important}
+ #voucherPrintRoot,#voucherPrintRoot *{visibility:visible!important}
+ #voucherPrintRoot{display:block!important;position:absolute!important;left:0!important;top:0!important;width:200mm!important;margin:0!important;padding:0!important;background:#fff!important;z-index:999999!important}
+ #voucherPrintRoot .voucher-sheet{display:grid!important;grid-template-columns:repeat(var(--voucher-columns),minmax(0,1fr))!important;grid-template-rows:repeat(var(--voucher-rows),minmax(0,1fr))!important;gap:1mm!important;width:200mm!important;height:287mm!important;margin:0!important;padding:0!important;overflow:hidden!important;break-after:page!important;page-break-after:always!important}
+ #voucherPrintRoot .voucher-sheet:last-child{break-after:auto!important;page-break-after:auto!important}
+ #voucherPrintRoot .voucher-card{box-sizing:border-box!important;min-width:0!important;min-height:0!important;width:auto!important;height:auto!important;margin:0!important;padding:1.2mm!important;border:0.25mm dashed var(--voucher-accent)!important;border-radius:1.2mm!important;box-shadow:none!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;break-inside:avoid!important;overflow:hidden!important;background-size:cover!important}
+ #voucherPrintRoot .voucher-card:before{background:linear-gradient(135deg,#fffefaf0,#edf8fbe8)!important}
+ #voucherPrintRoot .voucher-card-head{padding-bottom:.7mm!important;gap:1mm!important}
+ #voucherPrintRoot .voucher-card-head strong{font-size:7.2pt!important;line-height:1.1!important}
+ #voucherPrintRoot .voucher-card-head span{font-size:4.2pt!important;letter-spacing:.3pt!important}
+ #voucherPrintRoot .voucher-code-label{font-size:5.4pt!important;margin-top:1mm!important;line-height:1.05!important}
+ #voucherPrintRoot .voucher-code{font-size:10pt!important;letter-spacing:.7pt!important;line-height:1.15!important;white-space:nowrap!important}
+ #voucherPrintRoot .voucher-card-meta{gap:.5mm!important;padding-top:.7mm!important;font-size:5pt!important;line-height:1.05!important}
+ #voucherPrintRoot .voucher-card-note{margin-top:.5mm!important;font-size:4.5pt!important;line-height:1.05!important}
+}
