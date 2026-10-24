@@ -17,9 +17,9 @@ func TestNormalizeHotSpotUserDefaults(t *testing.T) {
 	}
 }
 
-func TestNormalizeHotSpotUserRejectsMissingCredentialsOrBadID(t *testing.T) {
+func TestNormalizeHotSpotUserRejectsMissingNameOrBadID(t *testing.T) {
 	tests := []HotSpotUserInput{
-		{Name: "user-1"},
+		{Password: "secret"},
 		{ID: "not-an-id", Name: "user-1"},
 		{ID: "*2", Name: "user-1", Password: string(make([]byte, 130))},
 	}
@@ -28,6 +28,16 @@ func TestNormalizeHotSpotUserRejectsMissingCredentialsOrBadID(t *testing.T) {
 		if _, err := normalizeUser(input, creating); !errors.Is(err, ErrInvalidRequest) {
 			t.Errorf("case %d error = %v, want ErrInvalidRequest", i, err)
 		}
+	}
+}
+
+func TestNormalizeHotSpotUserAllowsBlankPassword(t *testing.T) {
+	user, err := normalizeUser(HotSpotUserInput{Name: "  voucher-100  "}, true)
+	if err != nil {
+		t.Fatalf("blank password should be allowed: %v", err)
+	}
+	if user.Name != "voucher-100" || user.Password != "" {
+		t.Fatalf("unexpected normalized user: %#v", user)
 	}
 }
 
