@@ -196,3 +196,40 @@ func TestHotSpotProfileDeleteRejectsInvalidID(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestGenerateVoucherBatchRejectsInvalidCountBeforeRouterConnection(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"prefix":"BT-","count":201,"profile":"default","server":"all","limitUptime":""}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/vouchers/generate", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "router-secret") {
+		t.Fatal("router password leaked in validation error")
+	}
+}
+
+func TestListVoucherBatchesInitiallyEmpty(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/vouchers/batches", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Batches []map[string]any `json:"batches"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Batches) != 0 {
+		t.Fatalf("expected no batches, got %d", len(payload.Batches))
+	}
+}
+
+func TestGetVoucherBatchRejectsInvalidID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/vouchers/batches/not-a-number", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
