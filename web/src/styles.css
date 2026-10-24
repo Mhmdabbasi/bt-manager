@@ -64,3 +64,13 @@
  #voucherPrintRoot .voucher-card-meta{gap:.5mm!important;padding-top:.7mm!important;font-size:5pt!important;line-height:1.05!important}
  #voucherPrintRoot .voucher-card-note{margin-top:.5mm!important;font-size:4.5pt!important;line-height:1.05!important}
 }
+
+@media print{
+ #voucherPrintRoot .voucher-sheet-3x20 .voucher-card{padding:.7mm!important}
+ #voucherPrintRoot .voucher-sheet-3x20 .voucher-card-head strong{font-size:6.1pt!important}
+ #voucherPrintRoot .voucher-sheet-3x20 .voucher-card-head span{font-size:3.8pt!important}
+ #voucherPrintRoot .voucher-sheet-3x20 .voucher-code-label{font-size:4.6pt!important;margin-top:.6mm!important}
+ #voucherPrintRoot .voucher-sheet-3x20 .voucher-code{font-size:8.4pt!important;letter-spacing:.4pt!important}
+ #voucherPrintRoot .voucher-sheet-3x20 .voucher-card-meta{font-size:4.2pt!important;padding-top:.45mm!important}
+ #voucherPrintRoot .voucher-sheet-3x20 .voucher-card-note{font-size:3.8pt!important;margin-top:.3mm!important}
+}
