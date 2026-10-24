@@ -1,0 +1,17 @@
+bin/
+dist/
+*.exe
+*.test
+node_modules/
+web/node_modules/
+*.db
+*.db-shm
+*.db-wal
+.data/
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
