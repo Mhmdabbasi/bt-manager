@@ -77,12 +77,16 @@ func TestCardDomainSchemaRelationshipsAndInvariants(t *testing.T) {
 	}
 	otherPosID, _ := otherPosResult.LastInsertId()
 
-	if _, err := db.ExecContext(ctx, `INSERT INTO design_assets
+	assetResult, err := db.ExecContext(ctx, `INSERT INTO design_assets
 		(asset_key,original_name,mime_type,size_bytes,sha256,width_px,height_px)
-		VALUES('test-bg','background.png','image/png',128,'test-hash',1200,450)`); err != nil {
+		VALUES('test-bg','background.png','image/png',128,'test-hash',1200,450)`)
+	if err != nil {
 		t.Fatal(err)
 	}
-	assetID := int64(1)
+	assetID, err := assetResult.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	globalTemplateResult, err := db.ExecContext(ctx, `INSERT INTO card_templates
 		(package_id,scope_kind,name,is_default) VALUES(?,'global','Default template',1)`, packageID)
@@ -170,5 +174,4 @@ func TestCardDomainSchemaRelationshipsAndInvariants(t *testing.T) {
 	if oldTableCount != 3 {
 		t.Fatalf("legacy POS tables missing after additive migration: found %d of 3", oldTableCount)
 	}
-	_ = globalVersionResult
 }
