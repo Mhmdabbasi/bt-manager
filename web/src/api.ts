@@ -1,4 +1,4 @@
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
  let response:Response;
@@ -26,5 +26,9 @@ export const api={
  deleteHotSpotUser:(router:{address:string;port:number;username:string;password:string;useTls:boolean},id:string)=>request<{status:string}>('/api/router/hotspot/users/delete',{method:'POST',body:JSON.stringify({router,id}),signal:AbortSignal.timeout(30000)}),
  createHotSpotProfile:(router:{address:string;port:number;username:string;password:string;useTls:boolean},profile:{name:string;rateLimit:string;sharedUsers:string;sessionTimeout:string;idleTimeout:string})=>request<{status:string}>('/api/router/hotspot/profiles/create',{method:'POST',body:JSON.stringify({router,profile}),signal:AbortSignal.timeout(30000)}),
  updateHotSpotProfile:(router:{address:string;port:number;username:string;password:string;useTls:boolean},profile:{id:string;name:string;rateLimit:string;sharedUsers:string;sessionTimeout:string;idleTimeout:string})=>request<{status:string}>('/api/router/hotspot/profiles/update',{method:'POST',body:JSON.stringify({router,profile}),signal:AbortSignal.timeout(30000)}),
- deleteHotSpotProfile:(router:{address:string;port:number;username:string;password:string;useTls:boolean},id:string)=>request<{status:string}>('/api/router/hotspot/profiles/delete',{method:'POST',body:JSON.stringify({router,id}),signal:AbortSignal.timeout(30000)}),
+ deleteHotSpotProfile:(router:{address:string;port:number;username:string;password:string;useTls:boolean},id:string)=>request<{status:string}>('/api/router/hotspot/profiles/delete',{method:'POST',body:JSON.stringify({router,id}),signal:AbortSignal.timeout(30000)}),,
+
+ generateVouchers:(payload:{router:{address:string;port:number;username:string;password:string;useTls:boolean};prefix:string;count:number;profile:string;server:string;limitUptime:string})=>request<VoucherBatchResult>('/api/router/hotspot/vouchers/generate',{method:'POST',body:JSON.stringify(payload),signal:AbortSignal.timeout(120000)}),
+ voucherBatches:()=>request<{batches:VoucherBatch[]}>('/api/vouchers/batches'),
+ voucherBatch:(id:number)=>request<VoucherBatchResult>('/api/vouchers/batches/'+id),
 };
