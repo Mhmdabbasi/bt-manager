@@ -82,3 +82,36 @@ export interface VoucherBatchResult {
   untrackedUsernames?: string[];
   errorMessage?: string;
 }
+
+export interface VoucherProduct {
+  id: number;
+  name: string;
+  profileName: string;
+  priceMinor: number;
+  active: boolean;
+  stockCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface POSSale {
+  id: number;
+  reference: string;
+  totalMinor: number;
+  currencyCode: string;
+  paymentMethod: 'cash' | 'transfer' | 'card' | 'other';
+  createdAt: string;
+}
+export interface POSSaleItem {
+  id: number;
+  voucherId: number;
+  username: string;
+  productId: number;
+  productName: string;
+  profileName: string;
+  unitPriceMinor: number;
+  currencyCode: string;
+}
+export interface POSSaleResult {
+  sale: POSSale;
+  items: POSSaleItem[];
+}
