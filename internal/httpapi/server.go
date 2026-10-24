@@ -41,6 +41,9 @@ func New(application *app.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("PUT /api/settings", s.putSettings)
 	mux.HandleFunc("POST /api/router/test", s.testRouter)
 	mux.HandleFunc("POST /api/router/hotspot/overview", s.hotspotOverview)
+	mux.HandleFunc("POST /api/router/hotspot/vouchers/generate", s.generateVouchers)
+	mux.HandleFunc("GET /api/vouchers/batches", s.listVoucherBatches)
+	mux.HandleFunc("GET /api/vouchers/batches/{id}", s.getVoucherBatch)
 	for _, path := range []string{"/api/router/hotspot/users/create", "/api/router/hotspot/users/update", "/api/router/hotspot/users/state", "/api/router/hotspot/users/delete"} {
 		mux.HandleFunc("POST "+path, s.hotSpotUserMutation)
 	}
