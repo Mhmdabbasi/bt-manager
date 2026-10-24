@@ -120,3 +120,26 @@ func TestAllowLocalDevelopmentOrigin(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestHotSpotOverviewRejectsInvalidInput(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"address":"","port":8728,"username":"admin","password":"secret","useTls":false}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/overview", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "secret") {
+		t.Fatal("secret leaked in error response")
+	}
+}
+
+func TestHotSpotOverviewRejectsCrossSiteRequest(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/router/hotspot/overview",
+		`{"address":"192.168.88.1","port":8728,"username":"admin","password":"unused","useTls":false}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
