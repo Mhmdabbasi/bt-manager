@@ -15,6 +15,7 @@ type voucherProductRequest struct {
 	Name        string `json:"name"`
 	ProfileName string `json:"profileName"`
 	ServerName  string `json:"serverName"`
+	LimitUptime string `json:"limitUptime"`
 	PriceMinor  int64  `json:"priceMinor"`
 	Active      bool   `json:"active"`
 }
@@ -46,7 +47,7 @@ func (s *Server) createVoucherProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	product, err := s.app.DB.CreateVoucherProduct(r.Context(), store.VoucherProductInput{
-		Name: req.Name, ProfileName: req.ProfileName, ServerName: req.ServerName, PriceMinor: req.PriceMinor, Active: true,
+		Name: req.Name, ProfileName: req.ProfileName, ServerName: req.ServerName, LimitUptime: req.LimitUptime, PriceMinor: req.PriceMinor, Active: true,
 	})
 	if errors.Is(err, store.ErrInvalidPOSSale) {
 		writeError(w, http.StatusBadRequest, "invalid_product", "تحقق من اسم الباقة والملف التعريفي والسعر")
@@ -79,7 +80,7 @@ func (s *Server) updateVoucherProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	product, err := s.app.DB.UpdateVoucherProduct(r.Context(), id, store.VoucherProductInput{
-		Name: req.Name, ProfileName: req.ProfileName, ServerName: req.ServerName, PriceMinor: req.PriceMinor, Active: req.Active,
+		Name: req.Name, ProfileName: req.ProfileName, ServerName: req.ServerName, LimitUptime: req.LimitUptime, PriceMinor: req.PriceMinor, Active: req.Active,
 	})
 	if errors.Is(err, store.ErrVoucherProductNotFound) {
 		writeError(w, http.StatusNotFound, "product_not_found", "الباقة غير موجودة")
