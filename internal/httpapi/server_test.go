@@ -286,3 +286,27 @@ func TestPOSSalesListInitiallyEmpty(t *testing.T) {
 		t.Fatalf("expected no sales, got %d", len(payload.Sales))
 	}
 }
+
+func TestPOSProductRequiresUniqueProfileAndServerPair(t *testing.T) {
+	handler := testHandler(t)
+	first := httptest.NewRecorder()
+	body1 := `{"name":"Default all","profileName":"default","serverName":"all","priceMinor":20000}`
+	handler.ServeHTTP(first, jsonRequest(http.MethodPost, "/api/pos/products", body1))
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first product status %d: %s", first.Code, first.Body.String())
+	}
+
+	second := httptest.NewRecorder()
+	body2 := `{"name":"Duplicate default all","profileName":"default","serverName":"all","priceMinor":30000}`
+	handler.ServeHTTP(second, jsonRequest(http.MethodPost, "/api/pos/products", body2))
+	if second.Code != http.StatusConflict {
+		t.Fatalf("duplicate pair status %d: %s", second.Code, second.Body.String())
+	}
+
+	third := httptest.NewRecorder()
+	body3 := `{"name":"Default another server","profileName":"default","serverName":"hotspot2","priceMinor":30000}`
+	handler.ServeHTTP(third, jsonRequest(http.MethodPost, "/api/pos/products", body3))
+	if third.Code != http.StatusCreated {
+		t.Fatalf("different server product status %d: %s", third.Code, third.Body.String())
+	}
+}
