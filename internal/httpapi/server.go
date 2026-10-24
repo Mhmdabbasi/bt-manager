@@ -44,6 +44,12 @@ func New(application *app.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("POST /api/router/hotspot/vouchers/generate", s.generateVouchers)
 	mux.HandleFunc("GET /api/vouchers/batches", s.listVoucherBatches)
 	mux.HandleFunc("GET /api/vouchers/batches/{id}", s.getVoucherBatch)
+	mux.HandleFunc("GET /api/pos/products", s.listVoucherProducts)
+	mux.HandleFunc("POST /api/pos/products", s.createVoucherProduct)
+	mux.HandleFunc("PUT /api/pos/products/{id}", s.updateVoucherProduct)
+	mux.HandleFunc("GET /api/pos/sales", s.listPOSSales)
+	mux.HandleFunc("POST /api/pos/sales", s.createPOSSale)
+	mux.HandleFunc("GET /api/pos/sales/{id}", s.getPOSSale)
 	for _, path := range []string{"/api/router/hotspot/users/create", "/api/router/hotspot/users/update", "/api/router/hotspot/users/state", "/api/router/hotspot/users/delete"} {
 		mux.HandleFunc("POST "+path, s.hotSpotUserMutation)
 	}
