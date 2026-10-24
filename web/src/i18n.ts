@@ -200,6 +200,31 @@ const english: Record<string, string> = {
   'تأكد من العملة قبل بدء البيع؛ لن يمكن تغييرها بعد تسجيل أول معاملة مالية.':'Confirm the currency before selling; it cannot be changed after the first financial transaction.',
   'عنوان IP':'IP address','عنوان MAC':'MAC address','الواجهة':'Interface','مجمع العناوين':'Address pool',
 
+
+  'حُفظت محليًا {created} من أصل {requested} قسيمة.':'Saved {created} of {requested} vouchers locally.',
+  'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.':'Previewing the first {count} vouchers — printing uses the full A4 layout.',
+  'إيصال البيع {reference}':'Sales receipt {reference}',
+  'حساب':'account','ملف':'profile','جلسة':'session','خادم':'server',
+  'اتركها فارغة للإبقاء على الحالية':'Leave blank to keep the current password',
+  'اتركها فارغة للدخول باسم المستخدم فقط':'Leave blank for username-only login',
+  'لن تتغير كلمة المرور إذا تركت الحقل فارغًا.':'The password will remain unchanged if left blank.',
+  'يمكن إنشاء الحساب باسم المستخدم فقط دون كلمة مرور.':'The account can be created without a password.',
+  'تم تحميل بيانات الحساب للتعديل. اترك كلمة المرور فارغة للإبقاء عليها دون تغيير.':'User loaded for editing. Leave the password blank to keep it unchanged.',
+  'هل تريد حذف حساب HotSpot «{name}» من الراوتر؟ لا يمكن التراجع عن هذا الإجراء.':'Delete HotSpot user “{name}” from the router? This cannot be undone.',
+  'هل تريد حذف الملف التعريفي «{name}»؟ قد يرفض الراوتر الحذف إذا كان الملف مستخدمًا.':'Delete profile “{name}”? The router may reject deletion if the profile is in use.',
+  'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.':'Previewing the first {count} vouchers — printing uses the full A4 layout.',
+  'حُفظت محليًا {created} من أصل {requested} قسيمة.':'Saved {created} of {requested} vouchers locally.',
+  'آخر {count} عملية':'Last {count} transactions',
+  'تُضاف البادئة قبل الرمز العشوائي.':'The prefix is added before the random code.',
+  'عدد المحارف، من 4 إلى 32.':'Characters, from 4 to 32.',
+  'من 1 إلى 200 حساب في الدفعة الواحدة.':'From 1 to 200 accounts per batch.',
+  'تم حفظ لقطة الشاشة.':'Screenshot saved.',
+  'تعذر تفعيل وضع ملء الشاشة.':'Could not enable fullscreen mode.',
+  'تم تفعيل الحساب':'User enabled','تم تعطيل الحساب':'User disabled',
+  'تم تحديث حساب HotSpot':'HotSpot user updated','تم إنشاء حساب HotSpot':'HotSpot user created',
+  'تم حذف حساب HotSpot':'HotSpot user deleted','تم تحديث الملف التعريفي':'Profile updated',
+  'تم إنشاء الملف التعريفي':'Profile created','تم حذف الملف التعريفي':'Profile deleted',
+
 };
 
 export function t(language: Language, text: string): string {
