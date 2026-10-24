@@ -10,8 +10,8 @@ type Props={
  currencySymbol:string;
  onMessage:(kind:FlashKind,message:string)=>void;
 };
-type ProductForm={name:string;profileName:string;serverName:string;price:string;active:boolean};
-const emptyForm:ProductForm={name:'',profileName:'',serverName:'all',price:'',active:true};
+type ProductForm={name:string;profileName:string;serverName:string;limitUptime:string;price:string;active:boolean};
+const emptyForm:ProductForm={name:'',profileName:'',serverName:'all',limitUptime:'',price:'',active:true};
 type PaymentMethod='cash'|'transfer'|'card'|'other';
 const paymentLabels:Record<PaymentMethod,string>={cash:'نقدًا',transfer:'حوالة',card:'بطاقة',other:'أخرى'};
 
@@ -67,7 +67,7 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
  function resetProduct(){setForm(emptyForm);setEditingID(null)}
  function startEdit(product:VoucherProduct){
   setEditingID(product.id);
-  setForm({name:product.name,profileName:product.profileName,serverName:product.serverName||'all',price:(product.priceMinor/100).toString(),active:product.active});
+  setForm({name:product.name,profileName:product.profileName,serverName:product.serverName||'all',limitUptime:product.limitUptime||'',price:(product.priceMinor/100).toString(),active:product.active});
   onMessage('success','تم تحميل الباقة للتعديل.');
  }
  async function submitProduct(event:FormEvent){
@@ -78,12 +78,12 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
   }
   setSavingProduct(true);
   try{
-   const payload={name:form.name.trim(),profileName:form.profileName,serverName:form.serverName,priceMinor,active:form.active};
+   const payload={name:form.name.trim(),profileName:form.profileName,serverName:form.serverName,limitUptime:form.limitUptime.trim(),priceMinor,active:form.active};
    if(editingID!==null){
     await api.updateVoucherProduct(editingID,payload);
     onMessage('success','تم تحديث باقة البيع.');
    }else{
-    await api.createVoucherProduct({name:payload.name,profileName:payload.profileName,serverName:payload.serverName,priceMinor:payload.priceMinor});
+    await api.createVoucherProduct({name:payload.name,profileName:payload.profileName,serverName:payload.serverName,limitUptime:payload.limitUptime,priceMinor:payload.priceMinor});
     onMessage('success','تم إنشاء باقة البيع.');
    }
    resetProduct();
@@ -95,7 +95,7 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
 
  async function toggleProduct(product:VoucherProduct){
   try{
-   await api.updateVoucherProduct(product.id,{name:product.name,profileName:product.profileName,serverName:product.serverName,priceMinor:product.priceMinor,active:!product.active});
+   await api.updateVoucherProduct(product.id,{name:product.name,profileName:product.profileName,serverName:product.serverName,limitUptime:product.limitUptime,priceMinor:product.priceMinor,active:!product.active});
    onMessage('success',product.active?'تم إيقاف الباقة عن البيع.':'تم تفعيل الباقة للبيع.');
    await reloadData();
   }catch(error){onMessage('danger',(error as Error).message||'تعذر تغيير حالة الباقة.')}
@@ -153,15 +153,16 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
      <div className="col-md-4"><label className="form-label" htmlFor="posProductName">اسم الباقة</label><input id="posProductName" className="form-control" maxLength={80} value={form.name} onChange={event=>setForm(old=>({...old,name:event.target.value}))} placeholder="مثال: كرت 200 ريال" required/></div>
      <div className="col-md-4"><label className="form-label" htmlFor="posProductProfile">الملف التعريفي</label><select id="posProductProfile" className="form-select form-control" value={form.profileName} onChange={event=>setForm(old=>({...old,profileName:event.target.value}))} required><option value="">اختر ملفًا</option>{profiles.map(item=><option key={item.id||item.name} value={item.name}>{item.name}</option>)}</select></div>
      <div className="col-md-4"><label className="form-label" htmlFor="posProductServer">خادم HotSpot</label><select id="posProductServer" className="form-select form-control" value={form.serverName} onChange={event=>setForm(old=>({...old,serverName:event.target.value}))} required><option value="all">كل الخوادم (all)</option>{servers.filter(item=>!item.disabled).map(item=><option key={item.name} value={item.name}>{item.name}</option>)}</select></div>
+     <div className="col-md-4"><label className="form-label" htmlFor="posProductLimit">حد الاستخدام الزمني</label><input id="posProductLimit" className="form-control ltr-input" maxLength={64} value={form.limitUptime} onChange={event=>setForm(old=>({...old,limitUptime:event.target.value}))} placeholder="مثال: 1d00:00:00"/><div className="form-hint">اتركه فارغًا إذا لم يُحدَّد حد زمني.</div></div>
      <div className="col-md-4"><label className="form-label" htmlFor="posProductPrice">سعر الوحدة ({currencySymbol||currencyCode})</label><input id="posProductPrice" type="number" step="0.01" min="0.01" max="10000000000" className="form-control ltr-input" value={form.price} onChange={event=>setForm(old=>({...old,price:event.target.value}))} required/></div>
     </div>
     {editingID!==null&&<label className="form-check mt-3"><input className="form-check-input" type="checkbox" checked={form.active} onChange={event=>setForm(old=>({...old,active:event.target.checked}))}/><span className="form-check-label">الباقة نشطة ويمكن بيعها</span></label>}
     <div className="d-flex flex-wrap gap-2 mt-3"><button className="btn btn-primary" type="submit" disabled={savingProduct||!profiles.length||!validPrice}>{savingProduct?'جارٍ الحفظ...':editingID!==null?'حفظ التغييرات':'إضافة الباقة'}</button>{editingID!==null&&<button type="button" className="btn btn-light" onClick={resetProduct} disabled={savingProduct}>إلغاء</button>}</div>
    </form>
 
-   <div className="table-responsive mt-3"><table className="table table-sm align-middle hotspot-data-table"><thead><tr><th>الباقة</th><th>الملف</th><th>الخادم</th><th>السعر</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>
-    {products.map(product=><tr key={product.id}><td>{product.name}</td><td>{product.profileName}</td><td>{product.serverName||'all'}</td><td>{formatAmount(product.priceMinor,currencyCode,currencySymbol)}</td><td>{product.stockCount}</td><td><span className={product.active?'text-success':'text-secondary'}>{product.active?'نشطة':'موقوفة'}</span></td><td><div className="d-flex flex-wrap gap-1"><button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>startEdit(product)} disabled={savingProduct}>تعديل</button><button type="button" className="btn btn-sm btn-outline-primary" onClick={()=>void toggleProduct(product)} disabled={savingProduct}>{product.active?'إيقاف':'تفعيل'}</button></div></td></tr>)}
-    {!products.length&&<tr><td colSpan={7} className="text-center text-secondary py-3">لا توجد باقات بعد. أنشئ باقة واختر الملف التعريفي وخادم HotSpot المطابقين للقسائم التي ولدتها.</td></tr>}
+   <div className="table-responsive mt-3"><table className="table table-sm align-middle hotspot-data-table"><thead><tr><th>الباقة</th><th>الملف</th><th>الخادم</th><th>حد الوقت</th><th>السعر</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>
+    {products.map(product=><tr key={product.id}><td>{product.name}</td><td>{product.profileName}</td><td>{product.serverName||'all'}</td><td>{product.limitUptime||'—'}</td><td>{formatAmount(product.priceMinor,currencyCode,currencySymbol)}</td><td>{product.stockCount}</td><td><span className={product.active?'text-success':'text-secondary'}>{product.active?'نشطة':'موقوفة'}</span></td><td><div className="d-flex flex-wrap gap-1"><button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>startEdit(product)} disabled={savingProduct}>تعديل</button><button type="button" className="btn btn-sm btn-outline-primary" onClick={()=>void toggleProduct(product)} disabled={savingProduct}>{product.active?'إيقاف':'تفعيل'}</button></div></td></tr>)}
+    {!products.length&&<tr><td colSpan={8} className="text-center text-secondary py-3">لا توجد باقات بعد. أنشئ باقة واختر الملف التعريفي وخادم HotSpot المطابقين للقسائم التي ولدتها.</td></tr>}
    </tbody></table></div>
   </section>
 
@@ -169,7 +170,7 @@ export default function POSPanel({profiles,servers,currencyCode,currencySymbol,o
    <div className="hotspot-section-title"><h3>بيع كروت الدخول</h3><span>عملية ذرّية — لا بيع فوق المخزون</span></div>
    <form className="hotspot-editor" onSubmit={submitSale}>
     <div className="row g-3">
-     <div className="col-md-6"><label className="form-label" htmlFor="posSaleProduct">باقة البيع</label><select id="posSaleProduct" className="form-select form-control" value={saleProductID} onChange={event=>{setSaleProductID(event.target.value);setQuantity(1)}} required><option value="">اختر باقة متاحة</option>{products.filter(item=>item.active&&item.stockCount>0).map(item=><option key={item.id} value={item.id}>{item.name} — {item.serverName||'all'} — {formatAmount(item.priceMinor,currencyCode,currencySymbol)} — المخزون {item.stockCount}</option>)}</select></div>
+     <div className="col-md-6"><label className="form-label" htmlFor="posSaleProduct">باقة البيع</label><select id="posSaleProduct" className="form-select form-control" value={saleProductID} onChange={event=>{setSaleProductID(event.target.value);setQuantity(1)}} required><option value="">اختر باقة متاحة</option>{products.filter(item=>item.active&&item.stockCount>0).map(item=><option key={item.id} value={item.id}>{item.name} — {item.serverName||'all'} — {item.limitUptime||'بلا حد زمني'} — {formatAmount(item.priceMinor,currencyCode,currencySymbol)} — المخزون {item.stockCount}</option>)}</select></div>
      <div className="col-md-3"><label className="form-label" htmlFor="posSaleQuantity">الكمية</label><input id="posSaleQuantity" className="form-control ltr-input" type="number" min={1} max={Math.max(1,maxQuantity)} value={quantity} onChange={event=>setQuantity(Number(event.target.value))} required/></div>
      <div className="col-md-3"><label className="form-label" htmlFor="posPaymentMethod">طريقة الدفع</label><select id="posPaymentMethod" className="form-select form-control" value={paymentMethod} onChange={event=>setPaymentMethod(event.target.value as PaymentMethod)}>{Object.entries(paymentLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
     </div>
@@ -199,7 +200,7 @@ function ReceiptContent({receipt,currencySymbol}:{receipt:POSSaleResult;currency
  return <div className="pos-receipt">
   <header><strong>إيصال بيع كروت إنترنت</strong><span dir="ltr">{receipt.sale.reference}</span></header>
   <div className="pos-receipt-meta"><span>التاريخ: {new Date(receipt.sale.createdAt).toLocaleString('ar')}</span><span>طريقة الدفع: {paymentLabels[receipt.sale.paymentMethod]}</span></div>
-  <table className="table table-sm"><thead><tr><th>اسم المستخدم</th><th>الباقة</th><th>الخادم</th><th>السعر</th></tr></thead><tbody>{receipt.items.map(item=><tr key={item.id}><td dir="ltr">{item.username}</td><td>{item.productName}</td><td>{item.serverName||'all'}</td><td>{formatAmount(item.unitPriceMinor,receipt.sale.currencyCode,currencySymbol)}</td></tr>)}</tbody></table>
+  <table className="table table-sm"><thead><tr><th>اسم المستخدم</th><th>الباقة</th><th>الخادم</th><th>حد الوقت</th><th>السعر</th></tr></thead><tbody>{receipt.items.map(item=><tr key={item.id}><td dir="ltr">{item.username}</td><td>{item.productName}</td><td>{item.serverName||'all'}</td><td>{item.limitUptime||'—'}</td><td>{formatAmount(item.unitPriceMinor,receipt.sale.currencyCode,currencySymbol)}</td></tr>)}</tbody></table>
   <div className="pos-receipt-total"><span>الإجمالي</span><strong>{formatAmount(receipt.sale.totalMinor,receipt.sale.currencyCode,currencySymbol)}</strong></div>
   <p className="pos-receipt-thanks">شكرًا لثقتكم</p>
  </div>;
