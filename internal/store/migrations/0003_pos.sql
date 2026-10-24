@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS pos_sale_items (
   sale_id INTEGER NOT NULL REFERENCES pos_sales(id) ON DELETE RESTRICT,
   voucher_id INTEGER NOT NULL UNIQUE REFERENCES vouchers(id) ON DELETE RESTRICT,
   product_id INTEGER NOT NULL REFERENCES voucher_products(id) ON DELETE RESTRICT,
+  product_name TEXT NOT NULL,
+  profile_name TEXT NOT NULL,
   unit_price_minor INTEGER NOT NULL CHECK(unit_price_minor > 0),
   currency_code TEXT NOT NULL CHECK(length(currency_code)=3)
 );
