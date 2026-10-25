@@ -111,12 +111,24 @@ The shared service-profile API currently supports reading/synchronizing HotSpot 
 - The store verifies that a selected profile belongs to the chosen service system. A new package must use a currently present profile; an existing package whose profile disappears is retained and marked as missing. It cannot be activated again until that profile is present.
 - Package names are checked without case sensitivity. Prices use integer minor currency units; dealer price cannot be negative or exceed customer price. Package records are archived rather than deleted.
 
-**Planned — points of sale and package distribution**
+**Implemented — points of sale and package distribution rules**
 
-- `GET/POST /api/points-of-sale`, `GET/PUT /api/points-of-sale/{id}`, and `POST /api/points-of-sale/{id}/archive`.
-- `GET/PUT /api/points-of-sale/{id}/packages` reads or updates package selection mode and package rules, including prefix/template overrides.
+- `GET /api/points-of-sale?includeInactive={boolean}` lists points of sale; `POST /api/points-of-sale` creates one.
+- `GET /api/points-of-sale/{id}` and `PUT /api/points-of-sale/{id}` read and update a point of sale.
+- `POST /api/points-of-sale/{id}/archive` deactivates a point of sale without deleting its history.
+- `GET /api/points-of-sale/{id}/packages?includeInactive={boolean}` lists the card packages and their effective permission for this point of sale.
+- `PUT /api/points-of-sale/{id}/packages` atomically replaces package selection mode and package rules. Its request contains `packageSelectionMode` (`all` or `selected`) and a `packages` array. Each rule includes `packageId`, `isEnabled`, optional `prefixOverride`, and optional `templateIdOverride`.
+- When mode is `all`, packages without an explicit rule are allowed by default; in `selected` mode, packages without a rule are denied. The store persists only explicit deviations from that default or actual overrides.
+- Prefix overrides accept only ASCII letters, digits, underscores, and hyphens. Template overrides are checked against both package and point-of-sale scope, and the schema triggers independently enforce template scope.
+- Point-of-sale codes are normalized to uppercase and must be unique. Point-of-sale records are deactivated rather than deleted.
 
-Use stable IDs in requests. Continue validating template scope and package availability when POS, template, batch-generation, and inventory handlers are added. Archive rather than delete records that have been referenced by a batch or movement.
+The local **Points of Sale & Distributors** UI supports creating, updating, deactivating/reactivating distributors and configuring allowed packages. Saving assignments does not generate vouchers, allocate inventory, or record a sale.
+
+**Still planned — distribution execution and inventory**
+
+The assignment rules are a prerequisite for the forthcoming unified voucher-batch generation, actual stock allocation/transfer ledger operations, template rendering, and print jobs. Those workflows must consume these rules; this catalog alone does not represent a stock movement or financial transaction.
+
+Use stable IDs in requests. Archive rather than delete records that have been referenced by a batch or movement.
 
 ### Assets and design studio
 
