@@ -149,6 +149,23 @@ export default function UserManagerManager({language,overview,loading,onRefresh}
           </tr>)}</tbody>
          </table>
         </div>}
+      <div className="section-heading mt-5 mb-3">
+       <div><h2>{tx('جميع القيود المستوردة')}</h2><p>{tx('تظهر هنا القيود حتى إن لم تكن مرتبطة حاليًا بملف تعريفي.')}</p></div>
+       <span className="badge text-bg-light border">{overview.limitations.length} {tx('قيد')}</span>
+      </div>
+      {overview.limitations.length===0
+       ? <div className="alert alert-light border mb-0">{tx('لم يعثر User Manager على قيود.')}</div>
+       : <div className="table-responsive">
+         <table className="table align-middle">
+          <thead><tr><th>{tx('اسم القيد')}</th><th>{tx('الحالة')}</th><th>{tx('خصائص القيد')}</th><th>{tx('آخر ظهور')}</th></tr></thead>
+          <tbody>{overview.limitations.map(limitation=><tr key={limitation.id}>
+           <td><div className="fw-bold">{limitation.name}</div><div className="small text-secondary">{limitation.sourceId}</div></td>
+           <td><span className={`badge ${limitation.present?'text-bg-success':'text-bg-warning'}`}>{limitation.present?tx('موجود على الراوتر'):tx('غير موجود حاليًا')}</span></td>
+           <td><details><summary className="text-primary">{tx('عرض التفاصيل')}</summary><div className="pt-3"><Properties properties={limitation.properties} language={language}/></div></details></td>
+           <td className="small text-secondary">{displayDate(limitation.lastSeenAt,language)}</td>
+          </tr>)}</tbody>
+         </table>
+        </div>}
      </>}
   </section>
  </div>;
