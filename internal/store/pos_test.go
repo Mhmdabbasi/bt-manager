@@ -72,6 +72,15 @@ func TestPOSSaleAtomicallySellsVouchersAndLocksCurrency(t *testing.T) {
 	if transactions != 1 {
 		t.Fatalf("financial transaction count = %d, want 1", transactions)
 	}
+	var saleMovementCount, saleMovementQuantity int
+	if err := db.QueryRowContext(ctx, `SELECT count(*),COALESCE(sum(quantity),0)
+		FROM voucher_stock_movements WHERE movement_type='sale' AND reference LIKE ?`, sale.Sale.Reference+"-SALE-%").
+		Scan(&saleMovementCount, &saleMovementQuantity); err != nil {
+		t.Fatal(err)
+	}
+	if saleMovementCount != 1 || saleMovementQuantity != 2 {
+		t.Fatalf("sale stock ledger = (%d movements, quantity %d), want (1, 2)", saleMovementCount, saleMovementQuantity)
+	}
 
 	settings, err := db.GetSettings(ctx)
 	if err != nil {
@@ -203,5 +212,70 @@ func TestPOSProductStockIsScopedToHotSpotServer(t *testing.T) {
 	}
 	if len(sale.Items) != 1 || sale.Items[0].Username != "USER-HOTSPOT1-TIMED" || sale.Items[0].ServerName != "hotspot1" || sale.Items[0].LimitUptime != "1d00:00:00" {
 		t.Fatalf("POS sold a voucher from the wrong HotSpot server: %+v", sale.Items)
+	}
+}
+
+
+func TestLegacyPOSCannotSellPackageBackedVouchers(t *testing.T) {
+	db := openPOSStore(t)
+	ctx := context.Background()
+
+	synced, err := db.SyncHotSpotProfilesSnapshot(ctx, HotSpotProfileSyncInput{
+		Address: "192.0.2.77", Port: 8728, RouterIdentity: "package-stock-router", RouterOSVersion: "7.20.1",
+		Profiles: []ImportedServiceProfile{{SourceID: "*1", Name: "shared-profile", Properties: map[string]string{"rate-limit": "4M/4M"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := db.ListServiceProfiles(ctx, synced.RouterID, "hotspot", true)
+	if err != nil || len(profiles) != 1 {
+		t.Fatalf("profiles=%+v err=%v", profiles, err)
+	}
+	pkg, err := db.CreateCardPackage(ctx, CardPackageInput{
+		Name: "Package-backed 200", ServiceSystem: "hotspot", ServiceProfileID: profiles[0].ID,
+		UserPriceMinor: 20000, DealerPriceMinor: 15000, DefaultPrefix: "PKG-", Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	userPrice, dealerPrice := pkg.UserPriceMinor, pkg.DealerPriceMinor
+	batch, err := db.BeginVoucherBatch(ctx, NewVoucherBatch{
+		Reference: "VCH-POS-PACKAGE-ISOLATION", Prefix: "PKG-", ProfileName: pkg.ServiceProfileName,
+		ServerName: "all", RequestedCount: 1, RouterID: pkg.RouterID, PackageID: pkg.ID,
+		ServiceSystemSnapshot: pkg.ServiceSystem, PackageNameSnapshot: pkg.Name,
+		UserPriceMinorSnapshot: &userPrice, DealerPriceMinorSnapshot: &dealerPrice,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.AddVoucher(ctx, batch.ID, "PKG-VOUCHER-001"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.FinishVoucherBatch(ctx, batch.ID, 0, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	legacyProduct, err := db.CreateVoucherProduct(ctx, VoucherProductInput{
+		Name: "Legacy same-profile product", ProfileName: pkg.ServiceProfileName,
+		ServerName: "all", PriceMinor: 20000, Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacyProduct.StockCount != 0 {
+		t.Fatalf("legacy POS counted package-backed stock: got %d, want 0", legacyProduct.StockCount)
+	}
+	if _, err := db.CreatePOSSale(ctx, "POS-PACKAGE-ISOLATION-01", legacyProduct.ID, 1, "cash"); !errors.Is(err, ErrInsufficientVoucherStock) {
+		t.Fatalf("legacy POS sale error = %v, want ErrInsufficientVoucherStock", err)
+	}
+	var sales, movements int
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM pos_sales").Scan(&sales); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM voucher_stock_movements WHERE movement_type='sale'").Scan(&movements); err != nil {
+		t.Fatal(err)
+	}
+	if sales != 0 || movements != 0 {
+		t.Fatalf("legacy sale changed package-backed stock: sales=%d sale movements=%d", sales, movements)
 	}
 }
