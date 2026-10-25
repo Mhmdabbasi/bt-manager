@@ -72,15 +72,15 @@ func (db *DB) CreateCardPackageSale(ctx context.Context, reference string, point
 	}
 	if !errors.Is(err, sql.ErrNoRows) { return CardPackageSaleResult{}, err }
 
-	var currency, packageName, serviceSystem, selectionMode string
+	var currency, packageName, serviceSystem string
 	var priceMinor int64
 	var posActive, packageActive, enabled int
-	err = tx.QueryRowContext(ctx, `SELECT p.active,cp.active,cp.name,cp.service_system,cp.user_price_minor,p.package_selection_mode,
+	err = tx.QueryRowContext(ctx, `SELECT p.active,cp.active,cp.name,cp.service_system,cp.user_price_minor,
 		CASE WHEN p.package_selection_mode='all' THEN COALESCE(rule.is_enabled,1) ELSE COALESCE(rule.is_enabled,0) END
 		FROM points_of_sale p CROSS JOIN card_packages cp
 		LEFT JOIN point_of_sale_packages rule ON rule.point_of_sale_id=p.id AND rule.package_id=cp.id
 		WHERE p.id=? AND cp.id=?`, pointOfSaleID, packageID).
-		Scan(&posActive, &packageActive, &packageName, &serviceSystem, &priceMinor, &selectionMode, &enabled)
+		Scan(&posActive, &packageActive, &packageName, &serviceSystem, &priceMinor, &enabled)
 	if errors.Is(err, sql.ErrNoRows) { return CardPackageSaleResult{}, ErrCardPackageSaleNotAllowed }
 	if err != nil { return CardPackageSaleResult{}, err }
 	if posActive != 1 || packageActive != 1 || enabled != 1 || serviceSystem != "hotspot" ||
