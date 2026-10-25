@@ -41,6 +41,8 @@ func New(application *app.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("PUT /api/settings", s.putSettings)
 	mux.HandleFunc("POST /api/router/test", s.testRouter)
 	mux.HandleFunc("POST /api/router/hotspot/overview", s.hotspotOverview)
+	mux.HandleFunc("POST /api/router/usermanager/sync", s.syncUserManager)
+	mux.HandleFunc("GET /api/usermanager/profiles", s.listSavedUserManagerProfiles)
 	mux.HandleFunc("POST /api/router/hotspot/vouchers/generate", s.generateVouchers)
 	mux.HandleFunc("GET /api/vouchers/batches", s.listVoucherBatches)
 	mux.HandleFunc("GET /api/vouchers/batches/{id}", s.getVoucherBatch)
