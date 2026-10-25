@@ -54,6 +54,7 @@ func New(application *app.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /api/points-of-sale/{id}", s.getPointOfSale)
 	mux.HandleFunc("PUT /api/points-of-sale/{id}", s.updatePointOfSale)
 	mux.HandleFunc("POST /api/points-of-sale/{id}/archive", s.archivePointOfSale)
+	mux.HandleFunc("POST /api/points-of-sale/{id}/sales", s.createPointOfSalePackageSale)
 	mux.HandleFunc("GET /api/points-of-sale/{id}/packages", s.getPointOfSalePackages)
 	mux.HandleFunc("PUT /api/points-of-sale/{id}/packages", s.replacePointOfSalePackages)
 	mux.HandleFunc("POST /api/router/usermanager/sync", s.syncUserManager)
