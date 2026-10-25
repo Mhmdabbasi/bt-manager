@@ -84,6 +84,7 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
  const validPrice=Number.isFinite(Number(form.userPrice))&&form.userPrice.trim()!==''&&parsedUserPrice>0&&parsedUserPrice<=1_000_000_000_000&&
   Number.isFinite(Number(form.dealerPrice))&&form.dealerPrice.trim()!==''&&parsedDealerPrice>=0&&parsedDealerPrice<=parsedUserPrice;
  const selectedProfile=profiles.find(profile=>profile.id===Number(form.serviceProfileId));
+ const selectedProfileCanBeSaved=Boolean(selectedProfile&&(selectedProfile.present||(editingID!==null&&!form.active)));
 
  function resetForm(){
   setEditingID(null);
@@ -105,8 +106,12 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
  }
  async function submit(event:FormEvent){
   event.preventDefault();
-  if(!form.serviceProfileId||!profilesForSystem.some(profile=>profile.id===Number(form.serviceProfileId))){
+  if(!selectedProfile||selectedProfile.sourceSystem!==form.serviceSystem){
    onMessage('danger',tx('اختر ملف خدمة مستوردًا من النوع المحدد.'));
+   return;
+  }
+  if(!selectedProfile.present&&(editingID===null||form.active)){
+   onMessage('danger',tx('الملف التعريفي غير موجود حاليًا على الراوتر؛ لا يمكن إنشاء باقة جديدة أو تفعيلها حتى يعود الملف التعريفي.'));
    return;
   }
   if(!validPrice){
@@ -145,15 +150,20 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
  function toggleInactive(){
   setIncludeInactive(value=>!value);
  }
- function togglePackage(pkg:CardPackage){
-  setForm({
-   name:pkg.name,serviceSystem:pkg.serviceSystem,serviceProfileId:String(pkg.serviceProfileId),
-   description:pkg.description,userPrice:(pkg.userPriceMinor/100).toFixed(2),
-   dealerPrice:(pkg.dealerPriceMinor/100).toFixed(2),defaultPrefix:pkg.defaultPrefix,
-   active:!pkg.active,sortOrder:String(pkg.sortOrder),
-  });
-  setEditingID(pkg.id);
-  window.setTimeout(()=>document.getElementById('cardPackageName')?.focus(),0);
+ async function togglePackage(pkg:CardPackage){
+  const payload:CardPackageInput={
+   name:pkg.name,serviceSystem:pkg.serviceSystem,serviceProfileId:pkg.serviceProfileId,
+   description:pkg.description,userPriceMinor:pkg.userPriceMinor,dealerPriceMinor:pkg.dealerPriceMinor,
+   defaultPrefix:pkg.defaultPrefix,active:!pkg.active,sortOrder:pkg.sortOrder,
+  };
+  setSaving(true);
+  try{
+   const updated=await api.updateCardPackage(pkg.id,payload);
+   setPackages(old=>old.map(item=>item.id===updated.id?updated:item));
+   onMessage('success',formatT(language,'تم تحديث باقة الكروت «{name}».',{name:updated.name}));
+   setReloadKey(key=>key+1);
+  }catch(error){onMessage('danger',(error as Error).message)}
+  finally{setSaving(false)}
  }
 
  return <section className="hotspot-management-section card-package-manager" id="card-packages">
@@ -191,7 +201,7 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
    </div>
    {selectedProfile&&!selectedProfile.present&&<div className="alert alert-warning mt-3 mb-0">{tx('الملف التعريفي المحدد غير موجود حاليًا على الراوتر. يمكنك حفظ الباقة غير نشطة، لكن لا يمكن تفعيلها حتى يعود الملف التعريفي.')}</div>}
    <div className="helper-box mt-3"><i className="bi bi-shield-check"/><span>{tx('لا يُحذف سجل الباقة نهائيًا؛ أوقفها بدلًا من حذفها حتى تبقى المراجع والتاريخ المالي المستقبلي متسقة. الأسعار تُحفظ بوحدات العملة الصغرى بدقة منزلتين عشريتين.')}</span></div>
-   <div className="d-flex flex-wrap gap-2 mt-3"><button className="btn btn-primary" type="submit" disabled={saving||!validPrice||!profilesForSystem.some(profile=>profile.id===Number(form.serviceProfileId))}>{saving?tx('جارٍ الحفظ...'):editingID!==null?tx('حفظ التغييرات'):tx('إنشاء الباقة')}</button>{editingID!==null&&<button type="button" className="btn btn-light" onClick={resetForm} disabled={saving}>{tx('إلغاء')}</button>}</div>
+   <div className="d-flex flex-wrap gap-2 mt-3"><button className="btn btn-primary" type="submit" disabled={saving||!validPrice||!selectedProfileCanBeSaved}>{saving?tx('جارٍ الحفظ...'):editingID!==null?tx('حفظ التغييرات'):tx('إنشاء الباقة')}</button>{editingID!==null&&<button type="button" className="btn btn-light" onClick={resetForm} disabled={saving}>{tx('إلغاء')}</button>}</div>
   </form>
 
   <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4 mb-2">
