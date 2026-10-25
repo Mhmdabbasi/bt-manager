@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useState,type CSSProperties,type ChangeEvent,type FormEvent} from 'react';
 import {api} from '../api';
 import {formatT,t,type Language} from '../i18n';
-import type {HotSpotProfile,HotSpotServer,Voucher,VoucherBatch,VoucherBatchResult} from '../types';
+import type {CardPackage,HotSpotProfile,HotSpotServer,PointOfSale,Voucher,VoucherBatch,VoucherBatchResult} from '../types';
 
 type RouterConnection={address:string;port:number;username:string;password:string;useTls:boolean};
 type FlashKind='success'|'danger';
@@ -53,6 +53,11 @@ export default function VoucherStudio({language,router,profiles,servers,business
  const [passwordLength,setPasswordLength]=useState(4);
  const [passwordCharset,setPasswordCharset]=useState<CharsetMode>('alphanumeric');
  const [profile,setProfile]=useState('');
+ const [cardPackages,setCardPackages]=useState<CardPackage[]>([]);
+ const [pointsOfSale,setPointsOfSale]=useState<PointOfSale[]>([]);
+ const [packageID,setPackageID]=useState('');
+ const [pointOfSaleID,setPointOfSaleID]=useState('');
+ const [allowWithoutTemplate,setAllowWithoutTemplate]=useState(false);
  const [server,setServer]=useState('all');
  const [limitUptime,setLimitUptime]=useState('');
  const [generating,setGenerating]=useState(false);
@@ -69,24 +74,49 @@ export default function VoucherStudio({language,router,profiles,servers,business
  useEffect(()=>{
   let active=true;
   void api.voucherBatches().then(result=>{if(active)setBatches(result.batches)}).catch(error=>{if(active)onMessage('danger',(error as Error).message)});
+  void Promise.all([api.cardPackages(false,'hotspot'),api.pointsOfSale(false)]).then(([packageResult,posResult])=>{
+   if(!active)return;
+   const address=router.address.trim().toLowerCase();
+   setCardPackages(packageResult.packages.filter(pkg=>
+    pkg.serviceProfilePresent&&pkg.routerAddress.trim().toLowerCase()===address&&
+    pkg.routerPort===router.port&&pkg.routerUseTls===router.useTls
+   ));
+   setPointsOfSale(posResult.pointsOfSale.filter(point=>point.active));
+  }).catch(error=>{if(active)onMessage('danger',tx((error as Error).message))});
   return ()=>{active=false};
- },[]);
+ },[router.address,router.port,router.useTls]);
  useEffect(()=>{if(!profile&&profiles.length)setProfile(profiles[0].name)},[profiles,profile]);
 
  const layout=layouts[layoutKey];
+ const selectedPackage=cardPackages.find(item=>item.id===Number(packageID))??null;
  const vouchers=selected?.vouchers??[];
  const sheets=useMemo(()=>chunk(vouchers,layout.capacity),[vouchers,layout.capacity]);
  const screenPreview=vouchers.slice(0,6);
 
  async function generate(event:FormEvent){
   event.preventDefault();
-  if(!profiles.some(item=>item.name===profile)){
+  if(packageID&&!selectedPackage){
+   onMessage('danger',tx('باقة الكروت المحددة غير متاحة لهذا الراوتر.'));
+   return;
+  }
+  if(!selectedPackage&&!profiles.some(item=>item.name===profile)){
    onMessage('danger',tx('اختر ملفًا تعريفيًا موجودًا على الراوتر قبل إنشاء القسائم.'));
+   return;
+  }
+  if(selectedPackage&&!selectedPackage.active){
+   onMessage('danger',tx('باقة الكروت المحددة موقوفة؛ فعّلها قبل إنشاء القسائم.'));
    return;
   }
   setGenerating(true);
   try{
-   const result=await api.generateVouchers({router,prefix,count,profile,server,limitUptime,usernameLength,usernameMode,passwordMode,passwordLength,passwordCharset});
+   const generationOptions={prefix:prefix.trim(),count,server,limitUptime,usernameLength,usernameMode,passwordMode,passwordLength,passwordCharset};
+   const result=selectedPackage
+    ?await api.generatePackagedVouchers({
+      router,packageId:selectedPackage.id,
+      ...(pointOfSaleID?{pointOfSaleId:Number(pointOfSaleID)}:{}),
+      allowWithoutTemplate,...generationOptions
+     })
+    :await api.generateVouchers({router,profile,...generationOptions});
    setSelected(result);
    setBatches(old=>[result.batch,...old.filter(batch=>batch.id!==result.batch.id)]);
    if(result.batch.failedCount>0||Boolean(result.untrackedUsernames?.length)){
@@ -132,8 +162,11 @@ export default function VoucherStudio({language,router,profiles,servers,business
    <h4>{tx("إنشاء دفعة جديدة")}</h4>
    <div className="row g-3">
     <div className="col-md-4"><label className="form-label" htmlFor="voucherCount">{tx("عدد الحسابات")}</label><input id="voucherCount" className="form-control ltr-input" type="number" min={1} max={200} step={1} value={count} onChange={event=>setCount(Math.max(1,Math.min(200,Number(event.target.value)||1)))} required/><div className="form-hint">{tx("من 1 إلى 200 حساب في الدفعة الواحدة.")}</div></div>
-    <div className="col-md-4"><label className="form-label" htmlFor="voucherPrefix">{tx("بادئة اسم المستخدم (اختيارية)")}</label><input id="voucherPrefix" className="form-control ltr-input" value={prefix} onChange={event=>setPrefix(event.target.value)} maxLength={32} pattern="[A-Za-z0-9_-]*" placeholder="BT-"/><div className="form-hint">{tx("تُضاف البادئة قبل الرمز العشوائي.")}</div></div>
-    <div className="col-md-4"><label className="form-label" htmlFor="voucherProfile">{tx("الملف التعريفي")}</label><select id="voucherProfile" className="form-select form-control" value={profile} onChange={event=>setProfile(event.target.value)} required>{profiles.map(item=><option key={item.id||item.name} value={item.name}>{item.name}</option>)}</select></div>
+    <div className="col-md-4"><label className="form-label" htmlFor="voucherPackage">{tx("الباقة التجارية (اختياري)")}</label><select id="voucherPackage" className="form-select form-control" value={packageID} onChange={event=>{setPackageID(event.target.value);setPointOfSaleID('');setAllowWithoutTemplate(false);const next=cardPackages.find(item=>item.id===Number(event.target.value));if(next)setProfile(next.serviceProfileName)}}><option value="">{tx("توليد تقليدي — دون باقة")}</option>{cardPackages.map(item=><option key={item.id} value={item.id}>{item.name} — {item.serviceProfileName}</option>)}</select><div className="form-hint">{tx("اختيار باقة يربط الدفعة بسعرها وملفها وسجل مخزونها.")}</div></div>
+    <div className="col-md-4"><label className="form-label" htmlFor="voucherPrefix">{tx("بادئة اسم المستخدم (اختيارية)")}</label><input id="voucherPrefix" className="form-control ltr-input" value={prefix} onChange={event=>setPrefix(event.target.value)} maxLength={32} pattern="[A-Za-z0-9_-]*" placeholder={selectedPackage?.defaultPrefix||"BT-"}/><div className="form-hint">{tx("تُضاف البادئة قبل الرمز العشوائي.")}</div></div>
+    {selectedPackage?<div className="col-md-4"><label className="form-label" htmlFor="voucherProfileFromPackage">{tx("الملف التعريفي من الباقة")}</label><input id="voucherProfileFromPackage" className="form-control" value={selectedPackage.serviceProfileName} readOnly/><div className="form-hint">{tx("سيستخدم النظام الملف المرتبط بالباقة ولا يمكن تغييره من هذه الدفعة.")}</div></div>:<div className="col-md-4"><label className="form-label" htmlFor="voucherProfile">{tx("الملف التعريفي")}</label><select id="voucherProfile" className="form-select form-control" value={profile} onChange={event=>setProfile(event.target.value)} required>{profiles.map(item=><option key={item.id||item.name} value={item.name}>{item.name}</option>)}</select></div>}
+    {selectedPackage&&<div className="col-md-6"><label className="form-label" htmlFor="voucherPointOfSale">{tx("نقطة البيع / الموزع (اختياري)")}</label><select id="voucherPointOfSale" className="form-select form-control" value={pointOfSaleID} onChange={event=>setPointOfSaleID(event.target.value)}><option value="">{tx("مخزون عام — دون تخصيص لموزع")}</option>{pointsOfSale.map(point=><option key={point.id} value={point.id}>{point.name} ({point.code})</option>)}</select><div className="form-hint">{tx("سيُرفض التوليد إذا كانت الباقة غير مسموحة لنقطة البيع المحددة.")}</div></div>}
+    {selectedPackage&&<div className="col-md-6 d-flex align-items-end"><label className="form-check mb-2"><input className="form-check-input" type="checkbox" checked={allowWithoutTemplate} onChange={event=>setAllowWithoutTemplate(event.target.checked)}/><span className="form-check-label">{tx("السماح بالتوليد دون قالب طباعة محفوظ")}</span><div className="form-hint">{tx("عند عدم وجود نسخة قالب محفوظة، يجب تفعيل هذا الخيار صراحةً؛ ستعتمد الطباعة على المعاينة الحالية.")}</div></label></div>}
     <div className="col-md-4"><label className="form-label" htmlFor="voucherUsernameLength">{tx("طول رمز الدخول")}</label><input id="voucherUsernameLength" className="form-control ltr-input" type="number" min={4} max={32} step={1} value={usernameLength} onChange={event=>setUsernameLength(Math.max(4,Math.min(32,Number(event.target.value)||4)))} required/><div className="form-hint">{tx("عدد المحارف، من 4 إلى 32.")}</div></div>
     <div className="col-md-4"><label className="form-label" htmlFor="voucherUsernameMode">{tx("نوع رمز الدخول")}</label><select id="voucherUsernameMode" className="form-select form-control" value={usernameMode} onChange={event=>setUsernameMode(event.target.value as CharsetMode)}><option value="alphanumeric">{tx("حروف وأرقام")}</option><option value="letters">{tx("حروف فقط")}</option><option value="numbers">{tx("أرقام فقط")}</option></select></div>
     <div className="col-md-4"><label className="form-label" htmlFor="voucherServer">{tx("خادم HotSpot")}</label><select id="voucherServer" className="form-select form-control" value={server} onChange={event=>setServer(event.target.value)}><option value="all">{tx("كل الخوادم (all)")}</option>{servers.filter(item=>!item.disabled).map(item=><option key={item.name} value={item.name}>{item.name}</option>)}</select></div>
