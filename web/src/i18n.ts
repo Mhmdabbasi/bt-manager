@@ -515,6 +515,7 @@ const englishEntries: Array<[string, string]> = [
   ['افتح تفاصيل أي ملف لعرض خصائصه وجميع القيود المرتبطة به.', 'Expand a profile to view its properties and all associated limitations.'],
   ['ملف', 'profiles'],
   ['السعر الفني', 'Configured price'],
+  ['سعر الملف في User Manager', 'User Manager profile price'],
   ['عدد القيود', 'Limitations'],
   ['التفاصيل', 'Details'],
   ['نجحت المزامنة لكن لم يعثر User Manager على ملفات تعريفية.', 'Sync succeeded, but User Manager returned no profiles.'],
