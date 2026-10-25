@@ -431,3 +431,130 @@ func TestCardPackageDetailAndArchiveReturnNotFoundForUnknownID(t *testing.T) {
 		t.Fatalf("archive status %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func packagedVoucherGenerationBody(address string, packageID, pointOfSaleID int64, allowWithoutTemplate bool) string {
+	payload := map[string]any{
+		"router": map[string]any{
+			"address": address, "port": 8728, "username": "api-user", "password": "transient-secret", "useTls": false,
+		},
+		"packageId": packageID, "allowWithoutTemplate": allowWithoutTemplate,
+		"prefix": "", "count": 1, "server": "all", "limitUptime": "",
+		"usernameLength": 8, "usernameMode": "numbers", "passwordMode": "none",
+		"passwordLength": 4, "passwordCharset": "numbers",
+	}
+	if pointOfSaleID > 0 {
+		payload["pointOfSaleId"] = pointOfSaleID
+	}
+	body, _ := json.Marshal(payload)
+	return string(body)
+}
+
+func setupPackagedVoucherGenerationFixture(t *testing.T, address, system string) (http.Handler, *store.DB, store.CardPackage) {
+	t.Helper()
+	handler, db := pointOfSaleTestHandler(t)
+	ctx := context.Background()
+	var routerID int64
+	var profileID int64
+	if system == "hotspot" {
+		synced, err := db.SyncHotSpotProfilesSnapshot(ctx, store.HotSpotProfileSyncInput{
+			Address: address, Port: 8728, RouterIdentity: "batch-test-router", RouterOSVersion: "7.20.1",
+			Profiles: []store.ImportedServiceProfile{{SourceID: "*1", Name: "basic", Properties: map[string]string{"rate-limit": "2M/2M"}}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		routerID = synced.RouterID
+		profiles, err := db.ListServiceProfiles(ctx, routerID, "hotspot", true)
+		if err != nil || len(profiles) != 1 {
+			t.Fatalf("profiles=%+v err=%v", profiles, err)
+		}
+		profileID = profiles[0].ID
+	} else {
+		synced, err := db.SyncUserManagerSnapshot(ctx, store.UserManagerSyncInput{
+			Address: address, Port: 8728, RouterIdentity: "batch-test-router", RouterOSVersion: "7.20.1",
+			Profiles: []store.ImportedUserManagerProfile{{SourceID: "*1", Name: "basic", Properties: map[string]string{"validity": "1d"}}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		routerID = synced.RouterID
+		profiles, err := db.ListServiceProfiles(ctx, routerID, "usermanager", true)
+		if err != nil || len(profiles) != 1 {
+			t.Fatalf("profiles=%+v err=%v", profiles, err)
+		}
+		profileID = profiles[0].ID
+	}
+	pkg, err := db.CreateCardPackage(ctx, store.CardPackageInput{
+		Name: "Basic test package", ServiceSystem: system, ServiceProfileID: profileID,
+		UserPriceMinor: 10000, DealerPriceMinor: 8000, DefaultPrefix: "B-", Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pkg.RouterID != routerID || pkg.RouterPort != 8728 || pkg.RouterUseTLS {
+		t.Fatalf("unexpected package router context: %+v", pkg)
+	}
+	return handler, db, pkg
+}
+
+func TestPackagedVoucherGenerationRejectsMissingPackageBeforeRouterConnection(t *testing.T) {
+	handler := testHandler(t)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.70", 999, 0, true)))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "transient-secret") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestPackagedVoucherGenerationRejectsRouterMismatchBeforeNetwork(t *testing.T) {
+	handler, _, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.71", "hotspot")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.72", pkg.ID, 0, true)))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPackagedVoucherGenerationRequiresExplicitNoTemplatePolicy(t *testing.T) {
+	handler, _, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.73", "hotspot")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.73", pkg.ID, 0, false)))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	errInfo, _ := envelope["error"].(map[string]any)
+	if errInfo["code"] != "card_template_required" {
+		t.Fatalf("unexpected error response: %#v", envelope)
+	}
+}
+
+func TestPackagedVoucherGenerationRejectsUserManagerUntilWriteAdapterExists(t *testing.T) {
+	handler, _, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.74", "usermanager")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.74", pkg.ID, 0, true)))
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPackagedVoucherGenerationRejectsDisallowedPointOfSaleBeforeNetwork(t *testing.T) {
+	handler, db, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.75", "hotspot")
+	pos, err := db.CreatePointOfSale(context.Background(), store.PointOfSaleInput{
+		Code: "SELECTED-SHOP", Name: "Selected shop", PackageSelectionMode: "selected", Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.75", pkg.ID, pos.ID, true)))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
