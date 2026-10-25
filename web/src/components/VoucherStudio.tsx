@@ -182,7 +182,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    <label className="form-label" htmlFor="voucherBatchHistory">{tx("الدفعات السابقة")}</label>
    <select id="voucherBatchHistory" className="form-select form-control" value={selected?.batch.id??''} onChange={event=>void chooseBatch(event.target.value)} disabled={loadingBatch}>
     <option value="">{tx("اختر دفعة لعرضها وطباعتها")}</option>
-    {batches.map(batch=><option key={batch.id} value={batch.id}>{batch.reference} — {batch.createdCount}/{batch.requestedCount} — {batch.usernameLength} {tx('محارف')} — {batch.status}</option>)}
+    {batches.map(batch=><option key={batch.id} value={batch.id}>{batch.reference} — {batch.packageNameSnapshot||batch.profileName}{batch.pointOfSaleId?' · '+tx('نقطة بيع')+' #'+batch.pointOfSaleId:''} — {batch.createdCount}/{batch.requestedCount} — {batch.usernameLength} {tx('محارف')} — {batch.status}</option>)}
    </select>
   </div>}
 
