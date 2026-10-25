@@ -193,3 +193,36 @@ export interface HotSpotProfileSyncResponse {
   router: RouterInfo;
   profiles: ServiceProfileRecord[];
 }
+
+export type ServiceSystem = 'hotspot' | 'usermanager';
+export interface CardPackage {
+  id: number;
+  name: string;
+  serviceSystem: ServiceSystem;
+  serviceProfileId: number;
+  serviceProfileName: string;
+  serviceProfilePresent: boolean;
+  routerId: number;
+  routerAddress: string;
+  routerIdentity: string;
+  description: string;
+  userPriceMinor: number;
+  dealerPriceMinor: number;
+  defaultPrefix: string;
+  generationConfig: Record<string, unknown>;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CardPackageInput {
+  name: string;
+  serviceSystem: ServiceSystem;
+  serviceProfileId: number;
+  description: string;
+  userPriceMinor: number;
+  dealerPriceMinor: number;
+  defaultPrefix: string;
+  active: boolean;
+  sortOrder: number;
+}
