@@ -37,6 +37,35 @@ func (s *Server) listCardPackages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"packages": packages})
 }
 
+func (s *Server) getCardPackage(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id < 1 {
+		writeError(w, http.StatusBadRequest, "invalid_card_package_id", "رقم باقة الكروت غير صالح")
+		return
+	}
+	pkg, err := s.app.DB.GetCardPackage(r.Context(), id)
+	if s.writeCardPackageError(w, err, "read") {
+		return
+	}
+	writeJSON(w, http.StatusOK, pkg)
+}
+
+func (s *Server) archiveCardPackage(w http.ResponseWriter, r *http.Request) {
+	if !guardLocalMutation(w, r) {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id < 1 {
+		writeError(w, http.StatusBadRequest, "invalid_card_package_id", "رقم باقة الكروت غير صالح")
+		return
+	}
+	pkg, err := s.app.DB.ArchiveCardPackage(r.Context(), id)
+	if s.writeCardPackageError(w, err, "archive") {
+		return
+	}
+	writeJSON(w, http.StatusOK, pkg)
+}
+
 func (s *Server) createCardPackage(w http.ResponseWriter, r *http.Request) {
 	if !guardLocalMutation(w, r) {
 		return
@@ -119,9 +148,14 @@ func (s *Server) writeCardPackageError(w http.ResponseWriter, err error, action 
 		writeError(w, http.StatusNotFound, "card_package_not_found", "باقة الكروت غير موجودة")
 	default:
 		s.logger.Error("card package "+action+" failed", "error", err)
-		if action == "create" {
+		switch action {
+		case "create":
 			writeError(w, http.StatusInternalServerError, "card_package_create_failed", "تعذر حفظ باقة الكروت")
-		} else {
+		case "read":
+			writeError(w, http.StatusInternalServerError, "card_package_read_failed", "تعذر قراءة باقة الكروت")
+		case "archive":
+			writeError(w, http.StatusInternalServerError, "card_package_archive_failed", "تعذر إيقاف باقة الكروت")
+		default:
 			writeError(w, http.StatusInternalServerError, "card_package_update_failed", "تعذر تحديث باقة الكروت")
 		}
 	}
