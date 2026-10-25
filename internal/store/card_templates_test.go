@@ -72,3 +72,36 @@ func TestResolveCardTemplateVersionRequiresSavedVersionAndPrefersExplicitOverrid
 		t.Fatalf("missing override error=%v", err)
 	}
 }
+
+func TestSaveCardTemplateVersionCreatesImmutableVersionsAndDefault(t *testing.T) {
+	db, packageID, _ := setupPointOfSaleTestDB(t)
+	ctx := context.Background()
+	first, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{
+		PackageID: packageID, Name: "Voucher template", IsDefault: true,
+		CardWidthMM: 50, CardHeightMM: 19.1,
+		DesignJSON: []byte(`[{"id":"username","field":"username","x":4,"y":40}]`),
+		PageLayoutJSON: []byte(`{"columns":4,"rows":15,"marginMm":5,"gapMm":1}`),
+	})
+	if err != nil { t.Fatal(err) }
+	if first.ID < 1 || first.VersionNumber != 1 || !first.IsDefault || first.LatestVersionID == nil {
+		t.Fatalf("unexpected first version: %+v", first)
+	}
+	second, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{
+		ID: first.ID, PackageID: packageID, Name: "Voucher template", IsDefault: true,
+		CardWidthMM: 50, CardHeightMM: 19.1,
+		DesignJSON: []byte(`[{"id":"username","field":"username","x":8,"y":42}]`),
+		PageLayoutJSON: []byte(`{"columns":4,"rows":15,"marginMm":5,"gapMm":1}`),
+	})
+	if err != nil { t.Fatal(err) }
+	if second.ID != first.ID || second.VersionNumber != 2 || second.LatestVersionID == nil || *second.LatestVersionID == *first.LatestVersionID {
+		t.Fatalf("version was not incremented: first=%+v second=%+v", first, second)
+	}
+	items, err := db.ListCardTemplates(ctx, packageID)
+	if err != nil { t.Fatal(err) }
+	if len(items) != 1 || items[0].VersionNumber != 2 || !items[0].IsDefault {
+		t.Fatalf("unexpected templates: %+v", items)
+	}
+	if _, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{PackageID:packageID,Name:"Invalid",CardWidthMM:0,CardHeightMM:19.1}); err == nil {
+		t.Fatal("expected invalid dimensions to be rejected")
+	}
+}
