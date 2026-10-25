@@ -416,3 +416,18 @@ func TestCardPackageUpdateRejectsInvalidID(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestCardPackageDetailAndArchiveReturnNotFoundForUnknownID(t *testing.T) {
+	handler := testHandler(t)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/card-packages/999", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("detail status %d: %s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/card-packages/999/archive", `{}`))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("archive status %d: %s", rec.Code, rec.Body.String())
+	}
+}
