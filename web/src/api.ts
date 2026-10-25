@@ -25,6 +25,7 @@ export const api={
  cardPackages:(includeInactive=true,system?:ServiceSystem)=>request<{packages:CardPackage[]}>('/api/card-packages?includeInactive='+String(includeInactive)+(system?'&system='+system:'')),
  createCardPackage:(payload:CardPackageInput)=>request<CardPackage>('/api/card-packages',{method:'POST',body:JSON.stringify(payload)}),
  updateCardPackage:(id:number,payload:CardPackageInput)=>request<CardPackage>('/api/card-packages/'+id,{method:'PUT',body:JSON.stringify(payload)}),
+ archiveCardPackage:(id:number)=>request<CardPackage>('/api/card-packages/'+id+'/archive',{method:'POST'}),
  syncUserManager:(router:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<UserManagerOverview>('/api/router/usermanager/sync',{method:'POST',body:JSON.stringify({router}),signal:AbortSignal.timeout(30000)}),
  userManagerProfiles:(routerId:number)=>request<{profiles:UserManagerProfile[];limitations:UserManagerLimitation[]}>('/api/usermanager/profiles?routerId='+encodeURIComponent(String(routerId))),
  createHotSpotUser:(router:{address:string;port:number;username:string;password:string;useTls:boolean},user:{name:string;password:string;profile:string;server:string;limitUptime:string;comment:string})=>request<{status:string}>('/api/router/hotspot/users/create',{method:'POST',body:JSON.stringify({router,user}),signal:AbortSignal.timeout(30000)}),
