@@ -140,12 +140,19 @@ Use stable IDs in requests. Archive rather than delete records that have been re
 
 ### Batch generation and printing
 
-- Add `POST /api/voucher-batches` for the new unified workflow. Request includes transient router credentials, `packageId`, `count`, optional `pointOfSaleId`, and optional per-batch generation/prefix overrides.
-- Resolve the effective template and prefix deterministically: point-of-sale package override -> package's global default/prefix. Do not silently use an unrelated template. If no valid template exists, allow generation only if policy explicitly allows storing vouchers without printing; otherwise reject before writing users to RouterOS.
-- Snapshot the selected template version, package commercial values, service system, prefix, and credential-generation options on the batch.
-- `POST /api/voucher-batches/{id}/print` creates a print job using the immutable template version. The print result records status and page count; reprinting creates a separate print event and does not create/sell vouchers again.
+**Implemented — package-backed HotSpot generation**
 
-Keep the existing `/api/router/hotspot/vouchers/generate` endpoint as a compatibility path during the transition. Do not point it to User Manager until the new service adapters and tests exist.
+- `POST /api/voucher-batches` accepts transient router credentials, `packageId`, `count`, optional `pointOfSaleId`, generation options, and the explicit `allowWithoutTemplate` policy flag.
+- Generation is allowed only for an active HotSpot package whose imported profile is still present and whose saved router identity matches the request's address, API port, and TLS mode. User Manager packages return HTTP 422 until a separate User Manager write adapter exists; no write request is sent to the router for that unsupported path.
+- If a point of sale is specified, it must be active and its package-selection rules must allow the package. A point-of-sale prefix override takes precedence over a one-off prefix; otherwise the submitted prefix falls back to the package's default prefix.
+- Before any router writes, the API resolves the latest saved active template version. If none exists, generation is blocked unless `allowWithoutTemplate=true` is explicitly selected in the Voucher Studio. That fallback is designed for the existing browser preview/print flow and does not create a durable print-template version.
+- The batch stores router/package/POS/template IDs when present, package name and commercial price snapshots, credential-generation settings, and a copy of the imported service-profile properties. Vouchers copy package/POS assignments from their batch. Batch completion appends an `issue` stock movement and, when a distributor was selected, an `allocate` movement in the same transaction that finalizes the batch.
+- The Voucher Studio can select a package and optional point of sale. The existing `/api/router/hotspot/vouchers/generate` endpoint remains available for direct legacy generation.
+
+**Planned — durable print jobs and User Manager writes**
+
+- `POST /api/voucher-batches/{id}/print` will create a print job using the immutable template version. The print result will record status and page count; reprinting creates a separate print event and does not create or sell vouchers again.
+- Do not route package-backed User Manager generation through the HotSpot writer. It requires its own adapter and tests before it can be enabled.
 
 ## Error and consistency semantics
 
