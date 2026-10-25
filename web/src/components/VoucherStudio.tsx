@@ -95,6 +95,26 @@ export default function VoucherStudio({language,router,profiles,servers,business
 
  const layout=layouts[layoutKey];
  const selectedPackage=cardPackages.find(item=>item.id===Number(packageID))??null;
+ useEffect(()=>{
+  let active=true;
+  if(!selectedPackage){setTemplates([]);setSelectedTemplateID('');return ()=>{active=false}};
+  setTemplateLoading(true);
+  void Promise.all([api.cardTemplates(selectedPackage.id),api.designAssets()]).then(([result,assetsResult])=>{
+   if(!active)return;
+   setTemplates(result.templates);
+   const item=result.templates.find(template=>template.isDefault&&template.scopeKind==='global')||result.templates.find(template=>template.scopeKind==='global');
+   if(!item)return;
+   setSelectedTemplateID(String(item.id));setTemplateName(item.name);setTemplateDefault(item.isDefault);
+   setCardWidthMM(item.cardWidthMm);setCardHeightMM(item.cardHeightMm);
+   setDesignElements(Array.isArray(item.design)&&item.design.length?item.design:defaultDesign);
+   const layoutKeyFound=(Object.keys(layouts) as LayoutKey[]).find(key=>layouts[key].columns===item.pageLayout?.columns&&layouts[key].rows===item.pageLayout?.rows);
+   setLayoutKey(layoutKeyFound||'4x15');setPageMarginMM(item.pageLayout?.marginMm??5);setPageGapMM(item.pageLayout?.gapMm??1);
+   setBackgroundAssetId(item.backgroundAssetId||0);
+   const asset=assetsResult.assets.find(assetItem=>assetItem.id===item.backgroundAssetId);
+   setBackground(asset?'/api/design-assets/'+asset.assetKey:'');setBackgroundName(asset?.originalName||'');
+  }).catch(error=>{if(active)onMessage('danger',(error as Error).message)}).finally(()=>{if(active)setTemplateLoading(false)});
+  return ()=>{active=false};
+ },[selectedPackage?.id]);
  const vouchers=selected?.vouchers??[];
  const sheets=useMemo(()=>chunk(vouchers,layout.capacity),[vouchers,layout.capacity]);
  const screenPreview=vouchers.slice(0,6);
