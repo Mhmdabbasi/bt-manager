@@ -66,7 +66,7 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
     }
     if(active){setPackages(packageResult.packages);setProfiles(imported)}
    }catch(error){
-    if(active)onMessage('danger',(error as Error).message);
+    if(active)onMessage('danger',tx((error as Error).message));
    }finally{
     if(active)setLoading(false);
    }
@@ -162,7 +162,7 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
    setPackages(old=>old.map(item=>item.id===updated.id?updated:item));
    onMessage('success',formatT(language,'تم تحديث باقة الكروت «{name}».',{name:updated.name}));
    setReloadKey(key=>key+1);
-  }catch(error){onMessage('danger',(error as Error).message)}
+  }catch(error){onMessage('danger',tx((error as Error).message))}
   finally{setSaving(false)}
  }
 
