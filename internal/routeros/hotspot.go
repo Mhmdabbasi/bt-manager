@@ -3,6 +3,7 @@ package routerosadapter
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	ros "github.com/Mhmdabbasi/routeros-api-Go"
 )
@@ -163,4 +164,57 @@ func routerOSBool(value string) bool {
 	default:
 		return false
 	}
+}
+
+
+type ImportedHotSpotProfile struct {
+	SourceID   string            `json:"sourceId"`
+	Name       string            `json:"name"`
+	Properties map[string]string `json:"properties"`
+}
+
+type HotSpotProfilesSnapshot struct {
+	Router   RouterInfo              `json:"router"`
+	Profiles []ImportedHotSpotProfile `json:"profiles"`
+}
+
+// ReadHotSpotProfiles reads the full HotSpot user-profile list for durable local
+// cataloging. It does not request users, passwords, or active sessions.
+func ReadHotSpotProfiles(ctx context.Context, request TestRequest) (HotSpotProfilesSnapshot, error) {
+	api, err := connectRouter(ctx, request)
+	if err != nil {
+		return HotSpotProfilesSnapshot{}, err
+	}
+	defer api.Close()
+
+	system, err := api.System.GetInfoContext(ctx)
+	if err != nil {
+		return HotSpotProfilesSnapshot{}, fmt.Errorf("read RouterOS version for HotSpot profiles: %w", err)
+	}
+	const properties = ".id,name,address-pool,session-timeout,idle-timeout,keepalive-timeout,status-autorefresh,shared-users,rate-limit,add-mac-cookie,mac-cookie-timeout,address-list,transparent-proxy,use-radius"
+	rows, err := readRows(ctx, api, "/ip/hotspot/user/profile/print", properties)
+	if err != nil {
+		return HotSpotProfilesSnapshot{}, fmt.Errorf("read HotSpot profiles: %w", err)
+	}
+
+	snapshot := HotSpotProfilesSnapshot{
+		Router: RouterInfo{
+			Identity: system.Identity, Version: system.Version, Model: system.Model,
+			BoardName: system.BoardName, Uptime: system.Uptime, CPU: system.CPU,
+			CPUCount: system.CPUCount, FreeMemory: system.FreeMemory, TotalMemory: system.TotalMemory,
+		},
+		Profiles: make([]ImportedHotSpotProfile, 0, len(rows)),
+	}
+	for _, row := range rows {
+		name := strings.TrimSpace(row["name"])
+		sourceID := sourceIdentity(row, name)
+		if name == "" || sourceID == "" {
+			return HotSpotProfilesSnapshot{}, fmt.Errorf("invalid HotSpot profile returned by RouterOS")
+		}
+		snapshot.Profiles = append(snapshot.Profiles, ImportedHotSpotProfile{
+			SourceID: sourceID, Name: name,
+			Properties: safeProperties(row, strings.Split(properties, ",")),
+		})
+	}
+	return snapshot, nil
 }
