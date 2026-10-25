@@ -4,13 +4,14 @@ import HotSpotManager from './components/HotSpotManager';
 import UserManagerManager from './components/UserManagerManager';
 import CardPackageManager from './components/CardPackageManager';
 import PointOfSaleManager from './components/PointOfSaleManager';
+import CardTemplateLibrary from './components/CardTemplateLibrary';
 import {formatT,t,type Language} from './i18n';
 import {setBootstrapDirection} from './bootstrapStyles';
 import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,UserManagerOverview} from './types';
 
 const defaults:AppSettings={businessName:'bt-manager',currencyCode:'YER',currencySymbol:'ر.ي',setupComplete:false};
 type Flash={kind:'success'|'danger';message:string}|null;
-type Page='dashboard'|'settings'|'hotspot-users'|'hotspot-profiles'|'hotspot-sessions'|'hotspot-servers'|'vouchers'|'pos'|'user-manager'|'card-packages'|'points-of-sale';
+type Page='dashboard'|'settings'|'hotspot-users'|'hotspot-profiles'|'hotspot-sessions'|'hotspot-servers'|'vouchers'|'pos'|'user-manager'|'card-packages'|'points-of-sale'|'card-studio';
 type HotSpotView='users'|'profiles'|'sessions'|'servers'|'vouchers'|'pos';
 const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
  dashboard:{title:'نظرة عامة',eyebrow:'لوحة التحكم',description:'ملخص حالة التطبيق والشبكة وأهم وحدات العمل.'},
@@ -23,7 +24,8 @@ const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
  pos:{title:'نقطة البيع',eyebrow:'المبيعات',description:'تعريف الباقات وبيع القسائم المتوفرة ومراجعة الإيصالات.'},
  'user-manager':{title:'User Manager',eyebrow:'إدارة RADIUS',description:'استيراد Profiles وLimitations وعرض القيود المرتبطة بها حسب إصدار RouterOS.'},
  'card-packages':{title:'دليل باقات الكروت',eyebrow:'كتالوج الباقات',description:'ربط الباقات التجارية بملفات HotSpot أو User Manager، وتحديد أسعار المستخدم والموزع.'},
- 'points-of-sale':{title:'نقاط البيع والموزعون',eyebrow:'إدارة التوزيع',description:'إدارة بيانات الموزعين وتحديد الباقات المسموح بها وقواعد التوزيع.'}
+ 'points-of-sale':{title:'نقاط البيع والموزعون',eyebrow:'إدارة التوزيع',description:'إدارة بيانات الموزعين وتحديد الباقات المسموح بها وقواعد التوزيع.'},
+ 'card-studio':{title:'استوديو تصميم الكروت',eyebrow:'تصميم وطباعة الكروت',description:'استعراض قوالب الكروت المحفوظة بصورة مستقلة عن توليد القسائم.'}
 };
 const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:boolean}[]}[]=[
  {label:'عام',items:[{page:'dashboard',label:'نظرة عامة',icon:'bi-grid-1x2-fill'},{page:'settings',label:'الإعدادات والاتصال',icon:'bi-router'}]},
@@ -38,7 +40,8 @@ const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:bo
   {page:'pos',label:'نقطة البيع',icon:'bi-shop'},
   {page:'card-packages',label:'دليل باقات الكروت',icon:'bi-collection'},
   {page:'points-of-sale',label:'نقاط البيع والموزعون',icon:'bi-shop-window'}, 
-  {page:'user-manager',label:'User Manager',icon:'bi-person-gear'}
+  {page:'user-manager',label:'User Manager',icon:'bi-person-gear'},
+  {page:'card-studio',label:'استوديو تصميم الكروت',icon:'bi-palette2'}
  ]}
 ];
 const hotSpotViewByPage:Partial<Record<Page,HotSpotView>>={
@@ -241,6 +244,7 @@ export default function App(){
    {view&&<>{hotspot?<HotSpotManager language={language} view={view} router={router} overview={hotspot} businessName={settings.businessName} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onRefresh={()=>loadHotspot(false)} onMessage={(kind,message)=>setFlash({kind,message})}/>:<section className="panel empty-router-state"><div className="panel-icon cyan"><i className="bi bi-router"/></div><h2>{t(language,"بيانات HotSpot غير محمّلة")}</h2><p>{t(language,"اختبر اتصال الراوتر من الإعدادات أولًا، ثم اقرأ بيانات HotSpot لفتح هذا القسم.")}</p><button type="button" className="btn btn-primary" onClick={()=>navigate('settings')}>{t(language,"فتح الإعدادات والاتصال")}</button></section>}</>}
 
    {page==='user-manager'&&<UserManagerManager language={language} overview={userManagerOverview} loading={loadingUserManager} onRefresh={()=>void loadUserManager()}/>}
+   {page==='card-studio'&&<CardTemplateLibrary language={language} onMessage={(kind,message)=>setFlash({kind,message})}/>} 
    {page==='card-packages'&&<CardPackageManager language={language} routerId={routerCatalogId} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onMessage={(kind,message)=>setFlash({kind,message})} onRefreshHotSpot={()=>void loadHotspot(false)} onRefreshUserManager={()=>void loadUserManager(false)}/>}
    {page==='points-of-sale'&&<PointOfSaleManager language={language} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onMessage={(kind,message)=>setFlash({kind,message})}/>}
 
