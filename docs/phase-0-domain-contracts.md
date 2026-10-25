@@ -74,22 +74,24 @@ Migration 0007 adds nullable links/snapshots to `voucher_batches` and nullable p
 
 For new batches, store package name, service system, user price, dealer price, prefix/generation settings, selected POS, and template version as a creation-time snapshot. The template version row itself is immutable. Keep an explicit inventory movement for each assignment or transfer.
 
-## API contracts to implement in later phases
+## API contracts and implementation status
 
-All requests remain local to the application. Router credentials are passed only to the operation that requires router access, never returned by list endpoints or persisted in logs. Names below are proposed stable contracts; this phase intentionally adds schema and contracts documentation before adding incomplete handlers.
+All requests remain local to the application. Router credentials are passed only to the operation that requires router access, never returned by list endpoints or persisted in logs. Endpoints below are marked as implemented or planned so the UI does not rely on a contract that is not available yet.
 
-### Imported service data
+### User Manager profile import — read-only implemented
 
-- `POST /api/router/profiles/sync`
-  - Request: `{ "router": { "address": "...", "port": 8728, "username": "...", "password": "...", "useTls": false }, "system": "hotspot" | "usermanager" }`
-  - Response: router reference, sync time, source system, counts, warnings, and profile rows upserted.
-  - User Manager sync also refreshes limitations and the profile-limitation relationship.
-- `GET /api/service-profiles?routerId={id}&system={hotspot|usermanager}&includeMissing={boolean}`
-  - Response returns stable local profile IDs, source IDs, names, properties, presence state, and last-sync time.
-- `GET /api/service-profiles/{id}`
-  - For User Manager profiles includes related limitation details and their source IDs/properties.
+- `POST /api/router/usermanager/sync`
+  - Request: `{ "router": { "address": "...", "port": 8728, "username": "...", "password": "...", "useTls": false } }`.
+  - Reads the RouterOS version first, then reads profiles, limitations, and profile-limitation relationships using version-specific paths. It performs no User Manager writes.
+  - Response: router and sync metadata, imported profile rows with their currently related limitations, plus a standalone list of all limitations, including limitations not assigned to a profile.
+  - The request's router password is transient: it is neither stored in the router table nor returned in the response.
+  - The local sync is committed only after all three RouterOS read operations succeed and the relationships validate. A failed or incomplete response leaves the prior imported snapshot intact.
+- `GET /api/usermanager/profiles?routerId={id}`
+  - Returns the saved profiles and their last-known relationships, plus the standalone limitation inventory. Rows that were absent from a later successful router sync are marked `present=false` instead of being deleted.
+- RouterOS v6 uses the legacy `/tool/user-manager/profile` menu, including `/tool/user-manager/profile/limitation` and `/tool/user-manager/profile/profile-limitation`. RouterOS v7 uses `/user-manager/profile`, `/user-manager/limitation`, and `/user-manager/profile-limitation`.
+- If the version is unsupported, or reading any required User Manager menu fails, the API returns an explicit error instead of reporting a successful empty sync.
 
-If User Manager is not installed or unsupported on the target RouterOS version, return a typed capability error; do not return a misleading empty profile list.
+The next planned extension is a shared service-profile API that also imports HotSpot profiles into `service_profiles` and exposes `GET /api/service-profiles?routerId={id}&system={hotspot|usermanager}&includeMissing={boolean}`. This is not yet implemented by the current User Manager read-only endpoint.
 
 ### Card packages and points of sale
 
