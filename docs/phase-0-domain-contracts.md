@@ -91,7 +91,14 @@ All requests remain local to the application. Router credentials are passed only
 - RouterOS v6 uses the legacy `/tool/user-manager/profile` menu, including `/tool/user-manager/profile/limitation` and `/tool/user-manager/profile/profile-limitation`. RouterOS v7 uses `/user-manager/profile`, `/user-manager/limitation`, and `/user-manager/profile-limitation`.
 - If the version is unsupported, or reading any required User Manager menu fails, the API returns an explicit error instead of reporting a successful empty sync.
 
-The next planned extension is a shared service-profile API that also imports HotSpot profiles into `service_profiles` and exposes `GET /api/service-profiles?routerId={id}&system={hotspot|usermanager}&includeMissing={boolean}`. This is not yet implemented by the current User Manager read-only endpoint.
+### HotSpot profile catalog — read-only implemented
+
+- `POST /api/router/hotspot/profiles/sync` reads all HotSpot user profiles and upserts them into the same `service_profiles` catalog under `source_system='hotspot'`.
+- `GET /api/service-profiles?routerId={id}&system={hotspot|usermanager}&includeMissing={boolean}` returns source-specific profiles with stable local IDs, RouterOS source IDs, properties, presence state, and last-seen time.
+- Both HotSpot and User Manager snapshots use the same router identity key (address, API port, and TLS mode), allowing a commercial card package to refer to a service profile in either system without conflating similarly named profiles.
+- HotSpot profile syncing is read-only and does not modify the router. A failed read does not update the local profile catalog; records absent from a successful sync are marked missing instead of deleted.
+
+The shared service-profile API currently supports reading/synchronizing HotSpot profiles and reading the User Manager profiles persisted by the User Manager sync. User Manager profile-to-limitation details are returned by `/api/usermanager/profiles` and the User Manager sync endpoint.
 
 ### Card packages and points of sale
 
