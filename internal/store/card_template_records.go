@@ -94,6 +94,11 @@ func (db *DB) SaveCardTemplateVersion(ctx context.Context, input SaveCardTemplat
 		templateID,err=res.LastInsertId();if err!=nil{return CardTemplateRecord{},err}
 	}
 	if input.IsDefault { if _,err:=tx.ExecContext(ctx,`UPDATE card_templates SET is_default=0 WHERE package_id=? AND scope_kind='global' AND id<>?`,input.PackageID,templateID);err!=nil{return CardTemplateRecord{},err}; if _,err:=tx.ExecContext(ctx,`UPDATE card_templates SET is_default=1 WHERE id=?`,templateID);err!=nil{return CardTemplateRecord{},err} }
+	if input.PointOfSaleID>0 {
+		_,err:=tx.ExecContext(ctx,`INSERT INTO point_of_sale_packages(point_of_sale_id,package_id,is_enabled,template_id_override)
+			VALUES(?,?,1,?) ON CONFLICT(point_of_sale_id,package_id) DO UPDATE SET template_id_override=excluded.template_id_override,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')`,input.PointOfSaleID,input.PackageID,templateID)
+		if err!=nil{return CardTemplateRecord{},fmt.Errorf("assign point-of-sale template: %w",err)}
+	}
 	var next int
 	if err:=tx.QueryRowContext(ctx,`SELECT COALESCE(MAX(version_number),0)+1 FROM card_template_versions WHERE template_id=?`,templateID).Scan(&next);err!=nil{return CardTemplateRecord{},err}
 	var asset any; if input.BackgroundAssetID>0 { asset=input.BackgroundAssetID }
