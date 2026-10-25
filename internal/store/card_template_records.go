@@ -82,9 +82,8 @@ func (db *DB) SaveCardTemplateVersion(ctx context.Context, input SaveCardTemplat
 	if input.PointOfSaleID>0 { scope="point_of_sale"; pos=input.PointOfSaleID; input.IsDefault=false }
 	var templateID int64
 	if input.ID>0 {
-		res,err:=tx.ExecContext(ctx,`UPDATE card_templates SET name=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
-			WHERE id=? AND package_id=? AND scope_kind=? AND ((point_of_sale_id IS NULL AND ? IS NULL) OR point_of_sale_id=?)`,
-			input.Name,input.ID,input.PackageID,scope,pos,pos)
+		if input.IsDefault { if _,err:=tx.ExecContext(ctx,`UPDATE card_templates SET is_default=0,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE package_id=? AND scope_kind='global' AND id<>?`,input.PackageID,input.ID);err!=nil{return CardTemplateRecord{},err} }
+		res,err:=tx.ExecContext(ctx,`UPDATE card_templates SET name=?,is_default=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND package_id=? AND scope_kind=? AND ((point_of_sale_id IS NULL AND ? IS NULL) OR point_of_sale_id=?)`,input.Name,input.IsDefault,input.ID,input.PackageID,scope,pos,pos)
 		if err!=nil{return CardTemplateRecord{},fmt.Errorf("update card template: %w",err)}
 		n,_:=res.RowsAffected(); if n==0{return CardTemplateRecord{},ErrCardTemplateNotFound}; templateID=input.ID
 	} else {
