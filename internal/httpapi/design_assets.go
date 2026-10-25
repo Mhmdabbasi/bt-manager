@@ -67,6 +67,7 @@ func (s *Server) uploadDesignAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mimeType := http.DetectContentType(data)
+	if len(data) >= 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP" { mimeType = "image/webp" }
 	switch mimeType {
 	case "image/png", "image/jpeg":
 	case "image/webp":
@@ -157,7 +158,7 @@ func (s *Server) getDesignAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	w.Header().Set("Content-Type", mime.TypeByExtension(extension))
+	w.Header().Set("Content-Type", asset.MIMEType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	w.Header().Set("Content-Length", fmt.Sprint(asset.SizeBytes))
