@@ -407,3 +407,18 @@ body[data-theme="dark"] .form-check-input:checked{background-color:#147d91;borde
     background: var(--bt-sidebar, #122136);
   }
 }
+
+/* Voucher Studio canvas: absolute, template-driven variable placement */
+.voucher-card-canvas{position:relative;display:block;min-height:0;padding:0;aspect-ratio:50/19.1;isolation:isolate;background-position:center;background-size:cover}
+.voucher-card-canvas:before{z-index:0;background:linear-gradient(125deg,rgba(255,255,255,.45),rgba(240,249,251,.30))}
+.voucher-canvas-element{position:absolute;z-index:1;display:block;line-height:1.12;overflow-wrap:anywhere;transform:translateY(0);padding:0 .4mm;white-space:normal}
+.voucher-field-username,.voucher-field-password{font-family:Consolas,'Courier New',monospace;letter-spacing:.15mm;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.voucher-design-workbench{border:1px solid var(--bt-line);background:var(--bt-surface);border-radius:14px;padding:18px}
+.voucher-design-workbench h4{font-size:15px;font-weight:800;margin:0}
+@media print{
+ #voucherPrintRoot .voucher-card-canvas{display:block!important;position:relative!important;aspect-ratio:unset!important;padding:0!important;background-size:cover!important}
+ #voucherPrintRoot .voucher-card-canvas:before{background:linear-gradient(125deg,rgba(255,255,255,.45),rgba(240,249,251,.30))!important}
+ #voucherPrintRoot .voucher-canvas-element{padding:0 .2mm!important;line-height:1.05!important;overflow-wrap:anywhere!important}
+ #voucherPrintRoot .voucher-field-username,#voucherPrintRoot .voucher-field-password{white-space:nowrap!important;overflow:hidden!important}
+}
+body[data-theme="dark"] .voucher-design-workbench{background:#142235;border-color:#2a3b50}
