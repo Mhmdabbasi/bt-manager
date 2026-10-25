@@ -183,3 +183,40 @@ func TestCardPackageWarnsWhenProfileDisappearsAndCannotBeReactivated(t *testing.
 		t.Fatal("package router relationship changed unexpectedly")
 	}
 }
+
+func TestArchiveCardPackagePreservesRecord(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "card-packages-archive.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	_, err = db.SyncHotSpotProfilesSnapshot(ctx, HotSpotProfileSyncInput{
+		Address: "192.0.2.25", Port: 8728, RouterIdentity: "package-router", RouterOSVersion: "7.20.1",
+		Profiles: []ImportedServiceProfile{{SourceID: "*1", Name: "default"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, err := db.CreateCardPackage(ctx, CardPackageInput{
+		Name: "Archive test", ServiceSystem: "hotspot", ServiceProfileID: 1,
+		UserPriceMinor: 10000, Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	archived, err := db.ArchiveCardPackage(ctx, pkg.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if archived.Active {
+		t.Fatalf("archived package remains active: %+v", archived)
+	}
+	list, err := db.ListCardPackages(ctx, true, "")
+	if err != nil || len(list) != 1 || list[0].ID != pkg.ID || list[0].Active {
+		t.Fatalf("archive removed package history: list=%+v err=%v", list, err)
+	}
+	if _, err := db.ArchiveCardPackage(ctx, 999); !errors.Is(err, ErrCardPackageNotFound) {
+		t.Fatalf("missing package archive error=%v", err)
+	}
+}
