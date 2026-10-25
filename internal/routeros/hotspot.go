@@ -191,7 +191,7 @@ func ReadHotSpotProfiles(ctx context.Context, request TestRequest) (HotSpotProfi
 	if err != nil {
 		return HotSpotProfilesSnapshot{}, fmt.Errorf("read RouterOS version for HotSpot profiles: %w", err)
 	}
-	const properties = ".id,name,address-pool,session-timeout,idle-timeout,keepalive-timeout,status-autorefresh,shared-users,rate-limit,add-mac-cookie,mac-cookie-timeout,address-list,transparent-proxy,use-radius"
+	const properties = ".id,name,address-pool,session-timeout,idle-timeout,keepalive-timeout,status-autorefresh,shared-users,rate-limit,add-mac-cookie,mac-cookie-timeout,address-list,transparent-proxy"
 	rows, err := readRows(ctx, api, "/ip/hotspot/user/profile/print", properties)
 	if err != nil {
 		return HotSpotProfilesSnapshot{}, fmt.Errorf("read HotSpot profiles: %w", err)
