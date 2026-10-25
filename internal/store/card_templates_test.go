@@ -79,7 +79,7 @@ func TestSaveCardTemplateVersionCreatesImmutableVersionsAndDefault(t *testing.T)
 	first, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{
 		PackageID: packageID, Name: "Voucher template", IsDefault: true,
 		CardWidthMM: 50, CardHeightMM: 19.1,
-		DesignJSON: []byte(`[{"id":"username","field":"username","x":4,"y":40}]`),
+		DesignJSON: []byte(`[{"id":"username","field":"username","x":4,"y":40,"width":90,"fontSize":12,"color":"#123456","align":"center","bold":true}]`),
 		PageLayoutJSON: []byte(`{"columns":4,"rows":15,"marginMm":5,"gapMm":1}`),
 	})
 	if err != nil { t.Fatal(err) }
@@ -89,7 +89,7 @@ func TestSaveCardTemplateVersionCreatesImmutableVersionsAndDefault(t *testing.T)
 	second, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{
 		ID: first.ID, PackageID: packageID, Name: "Voucher template", IsDefault: true,
 		CardWidthMM: 50, CardHeightMM: 19.1,
-		DesignJSON: []byte(`[{"id":"username","field":"username","x":8,"y":42}]`),
+		DesignJSON: []byte(`[{"id":"username","field":"username","x":8,"y":42,"width":90,"fontSize":12,"color":"#123456","align":"center","bold":true}]`),
 		PageLayoutJSON: []byte(`{"columns":4,"rows":15,"marginMm":5,"gapMm":1}`),
 	})
 	if err != nil { t.Fatal(err) }
