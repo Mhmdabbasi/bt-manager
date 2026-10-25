@@ -263,7 +263,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
   </div>}
 
   {vouchers.length>0&&<div className="voucher-print-root" id="voucherPrintRoot">
-   {sheets.map((sheet,index)=><div className={"voucher-sheet voucher-sheet-"+layoutKey} key={index} style={{'--voucher-columns':layout.columns,'--voucher-rows':layout.rows,'--voucher-accent':accent} as CSSProperties}>
+   {sheets.map((sheet,index)=><div className={"voucher-sheet voucher-sheet-"+layoutKey} key={index} style={{'--voucher-columns':layout.columns,'--voucher-rows':layout.rows,'--voucher-accent':accent,'--voucher-sheet-width':(210-pageMarginMM*2)+'mm','--voucher-sheet-height':(297-pageMarginMM*2)+'mm','--voucher-gap':pageGapMM+'mm'} as CSSProperties}>
     {sheet.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}
    </div>)}
   </div>}
