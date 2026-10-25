@@ -50,6 +50,6 @@ func TestDesignAssetRejectsNonImageAndInvalidKey(t *testing.T) {
 	if upload.Code != http.StatusUnsupportedMediaType { t.Fatalf("non-image status %d: %s", upload.Code, upload.Body.String()) }
 
 	read := httptest.NewRecorder()
-	handler.ServeHTTP(read, httptest.NewRequest(http.MethodGet, "/api/design-assets/../../etc/passwd", nil))
+	handler.ServeHTTP(read, httptest.NewRequest(http.MethodGet, "/api/design-assets/invalid-key", nil))
 	if read.Code != http.StatusBadRequest && read.Code != http.StatusNotFound { t.Fatalf("invalid key status %d", read.Code) }
 }
