@@ -142,18 +142,25 @@ export default function VoucherStudio({language,router,profiles,servers,business
   finally{setLoadingBatch(false)}
  }
 
- function handleBackground(event:ChangeEvent<HTMLInputElement>){
-  const file=event.target.files?.[0];
+ async function handleBackground(event:ChangeEvent<HTMLInputElement>){
+  const input=event.currentTarget;
+  const file=input.files?.[0];
   if(!file)return;
-  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>2*1024*1024){
-   onMessage('danger',tx('اختر صورة PNG أو JPG أو WebP بحجم لا يتجاوز 2 ميجابايت.'));
-   event.target.value='';
+  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>8*1024*1024){
+   onMessage('danger',tx('اختر صورة PNG أو JPG أو WebP بحجم لا يتجاوز 8 ميجابايت.'));
+   input.value='';
    return;
   }
-  const reader=new FileReader();
-  reader.onload=()=>{if(typeof reader.result==='string'){setBackground(reader.result);setBackgroundName(file.name)}};
-  reader.onerror=()=>onMessage('danger',tx('تعذر قراءة ملف الخلفية.'));
-  reader.readAsDataURL(file);
+  try{
+   const result=await api.uploadDesignAsset(file,'background');
+   setBackground(result.url);
+   setBackgroundName(result.asset.originalName);
+   onMessage('success',tx('تم حفظ الخلفية على الجهاز ويمكن استرجاعها بعد إعادة التشغيل.'));
+  }catch(error){
+   onMessage('danger',(error as Error).message||tx('تعذر حفظ ملف الخلفية.'));
+  }finally{
+   input.value='';
+  }
  }
 
  return <section className="voucher-studio hotspot-management-section" id="cards">
