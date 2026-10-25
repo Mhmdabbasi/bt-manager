@@ -1,0 +1,561 @@
+package httpapi
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/Mhmdabbasi/bt-manager/internal/app"
+	"github.com/Mhmdabbasi/bt-manager/internal/store"
+)
+
+func testHandler(t *testing.T) http.Handler {
+	t.Helper()
+	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	return New(app.New(db, logger), logger)
+}
+
+func jsonRequest(method, target, body string) *http.Request {
+	r := httptest.NewRequest(method, target, strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	return r
+}
+
+func TestHealth(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var v map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &v); err != nil {
+		t.Fatal(err)
+	}
+	if v["database"] != "ready" {
+		t.Fatalf("database: %v", v["database"])
+	}
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatal("security headers missing")
+	}
+}
+
+func TestSaveSettingsNormalizesCurrency(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"businessName":"شبكة اختبار","currencyCode":"yer","currencySymbol":"ر.ي","setupComplete":false}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPut, "/api/settings", body))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var v map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &v); err != nil {
+		t.Fatal(err)
+	}
+	if v["currencyCode"] != "YER" || v["setupComplete"] != true {
+		t.Fatalf("settings: %#v", v)
+	}
+}
+
+func TestRejectInvalidSettingsAndSecrets(t *testing.T) {
+	bodies := []string{
+		`{"businessName":"Demo","currencyCode":"YE","currencySymbol":"ر.ي"}`,
+		`{"businessName":"Demo","currencyCode":"YER","currencySymbol":"ر.ي","password":"secret"}`,
+	}
+	for _, body := range bodies {
+		rec := httptest.NewRecorder()
+		testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPut, "/api/settings", body))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status %d for %s", rec.Code, body)
+		}
+	}
+}
+
+func TestRouterInvalidInput(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"address":"","port":8728,"username":"admin","password":"secret","useTls":false}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/test", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "secret") {
+		t.Fatal("secret leaked")
+	}
+}
+
+func TestRejectCrossSiteRouterProbe(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/router/test", `{"address":"192.168.88.1","port":8728,"username":"admin","password":"unused","useTls":false}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRejectTextPlainRouterProbe(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/router/test", strings.NewReader(`{"address":"192.168.88.1"}`))
+	req.Header.Set("Content-Type", "text/plain")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAllowLocalDevelopmentOrigin(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPut, "/api/settings", `{"businessName":"Demo","currencyCode":"YER","currencySymbol":"ر.ي"}`)
+	req.Header.Set("Origin", "http://127.0.0.1:5173")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHotSpotOverviewRejectsInvalidInput(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"address":"","port":8728,"username":"admin","password":"secret","useTls":false}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/overview", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "secret") {
+		t.Fatal("secret leaked in error response")
+	}
+}
+
+func TestHotSpotOverviewRejectsCrossSiteRequest(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/router/hotspot/overview",
+		`{"address":"192.168.88.1","port":8728,"username":"admin","password":"unused","useTls":false}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHotSpotUserCreateRejectsMissingName(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":""}}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/create", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "router-secret") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestHotSpotUserDeleteRejectsInvalidID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"id":"*1; /system/reboot"}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/delete", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHotSpotMutationRejectsCrossSiteRequest(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/router/hotspot/users/create",
+		`{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"unused","useTls":false},"user":{"name":"voucher-1","password":"pass"}}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHotSpotUserCreateRejectsMissingNameWithBlankPassword(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"user":{"name":"","password":""}}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/users/create", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "router-secret") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestHotSpotProfileDeleteRejectsInvalidID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"unused","useTls":false},"id":"*1; /system/reboot"}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/profiles/delete", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestGenerateVoucherBatchRejectsInvalidCountBeforeRouterConnection(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"192.168.88.1","port":8728,"username":"admin","password":"router-secret","useTls":false},"prefix":"BT-","count":201,"profile":"default","server":"all","limitUptime":""}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/vouchers/generate", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "router-secret") {
+		t.Fatal("router password leaked in validation error")
+	}
+}
+
+func TestListVoucherBatchesInitiallyEmpty(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/vouchers/batches", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Batches []map[string]any `json:"batches"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Batches) != 0 {
+		t.Fatalf("expected no batches, got %d", len(payload.Batches))
+	}
+}
+
+func TestGetVoucherBatchRejectsInvalidID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/vouchers/batches/not-a-number", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestListPOSProductsInitiallyEmpty(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/pos/products", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Products []map[string]any `json:"products"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Products) != 0 {
+		t.Fatalf("expected empty product catalog, got %d", len(payload.Products))
+	}
+}
+
+func TestPOSSaleRejectsInvalidQuantityBeforeWriting(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"requestId":"test-sale-0001","productId":1,"quantity":0,"paymentMethod":"cash"}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/pos/sales", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPOSMutationRejectsCrossSiteRequest(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/pos/products", `{"name":"Demo","profileName":"default","priceMinor":20000}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPOSSalesListInitiallyEmpty(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/pos/sales", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Sales []map[string]any `json:"sales"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Sales) != 0 {
+		t.Fatalf("expected no sales, got %d", len(payload.Sales))
+	}
+}
+
+func TestPOSProductRequiresUniqueProfileServerAndTimeLimit(t *testing.T) {
+	handler := testHandler(t)
+	first := httptest.NewRecorder()
+	body1 := `{"name":"Default all","profileName":"default","serverName":"all","priceMinor":20000}`
+	handler.ServeHTTP(first, jsonRequest(http.MethodPost, "/api/pos/products", body1))
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first product status %d: %s", first.Code, first.Body.String())
+	}
+
+	second := httptest.NewRecorder()
+	body2 := `{"name":"Duplicate default all","profileName":"default","serverName":"all","priceMinor":30000}`
+	handler.ServeHTTP(second, jsonRequest(http.MethodPost, "/api/pos/products", body2))
+	if second.Code != http.StatusConflict {
+		t.Fatalf("duplicate pair status %d: %s", second.Code, second.Body.String())
+	}
+
+	third := httptest.NewRecorder()
+	body3 := `{"name":"Default timed package","profileName":"default","serverName":"all","limitUptime":"1d00:00:00","priceMinor":30000}`
+	handler.ServeHTTP(third, jsonRequest(http.MethodPost, "/api/pos/products", body3))
+	if third.Code != http.StatusCreated {
+		t.Fatalf("different time-limit product status %d: %s", third.Code, third.Body.String())
+	}
+}
+
+
+func TestUserManagerSyncRejectsInvalidRouterAndDoesNotLeakSecrets(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"","port":8728,"username":"admin","password":"not-for-response","useTls":false}}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/usermanager/sync", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "not-for-response") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestSavedUserManagerProfilesRequiresRouterID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/usermanager/profiles?routerId=invalid", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+
+func TestHotSpotProfileSyncRejectsInvalidRouterAndDoesNotLeakSecrets(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"","port":8728,"username":"admin","password":"hotspot-secret","useTls":false}}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/profiles/sync", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "hotspot-secret") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestServiceProfilesRequiresValidSystemAndRouterID(t *testing.T) {
+	handler := testHandler(t)
+	cases := []struct{ target string; want int }{
+		{target: "/api/service-profiles?routerId=invalid&system=hotspot", want: http.StatusBadRequest},
+		{target: "/api/service-profiles?routerId=1&system=invalid", want: http.StatusBadRequest},
+		{target: "/api/service-profiles?routerId=999&system=hotspot", want: http.StatusNotFound},
+	}
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.target, nil))
+		if rec.Code != tc.want {
+			t.Fatalf("%s: status %d, want %d: %s", tc.target, rec.Code, tc.want, rec.Body.String())
+		}
+	}
+}
+
+
+func TestCardPackageListAndFilters(t *testing.T) {
+	handler := testHandler(t)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/card-packages", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Packages []map[string]any `json:"packages"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Packages == nil || len(payload.Packages) != 0 {
+		t.Fatalf("expected empty package list, got %#v", payload.Packages)
+	}
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/card-packages?system=radius", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid filter status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCardPackageCreateRequiresImportedProfile(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"name":"Starter","serviceSystem":"hotspot","serviceProfileId":999,"description":"","userPriceMinor":10000,"dealerPriceMinor":0,"defaultPrefix":"S-","active":true,"sortOrder":0}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/card-packages", body))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(strings.ToLower(rec.Body.String()), "password") {
+		t.Fatalf("unexpected sensitive data in response: %s", rec.Body.String())
+	}
+}
+
+func TestCardPackageMutationRejectsUntrustedOrigin(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/card-packages", `{"name":"Starter","serviceSystem":"hotspot","serviceProfileId":1,"userPriceMinor":10000,"dealerPriceMinor":0}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCardPackageUpdateRejectsInvalidID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"name":"Starter","serviceSystem":"hotspot","serviceProfileId":1,"userPriceMinor":10000,"dealerPriceMinor":0,"active":true}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPut, "/api/card-packages/not-an-id", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCardPackageDetailAndArchiveReturnNotFoundForUnknownID(t *testing.T) {
+	handler := testHandler(t)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/card-packages/999", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("detail status %d: %s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/card-packages/999/archive", `{}`))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("archive status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func packagedVoucherGenerationBody(address string, packageID, pointOfSaleID int64, allowWithoutTemplate bool) string {
+	payload := map[string]any{
+		"router": map[string]any{
+			"address": address, "port": 8728, "username": "api-user", "password": "transient-secret", "useTls": false,
+		},
+		"packageId": packageID, "allowWithoutTemplate": allowWithoutTemplate,
+		"prefix": "", "count": 1, "server": "all", "limitUptime": "",
+		"usernameLength": 8, "usernameMode": "numbers", "passwordMode": "none",
+		"passwordLength": 4, "passwordCharset": "numbers",
+	}
+	if pointOfSaleID > 0 {
+		payload["pointOfSaleId"] = pointOfSaleID
+	}
+	body, _ := json.Marshal(payload)
+	return string(body)
+}
+
+func setupPackagedVoucherGenerationFixture(t *testing.T, address, system string) (http.Handler, *store.DB, store.CardPackage) {
+	t.Helper()
+	handler, db := pointOfSaleTestHandler(t)
+	ctx := context.Background()
+	var routerID int64
+	var profileID int64
+	if system == "hotspot" {
+		synced, err := db.SyncHotSpotProfilesSnapshot(ctx, store.HotSpotProfileSyncInput{
+			Address: address, Port: 8728, RouterIdentity: "batch-test-router", RouterOSVersion: "7.20.1",
+			Profiles: []store.ImportedServiceProfile{{SourceID: "*1", Name: "basic", Properties: map[string]string{"rate-limit": "2M/2M"}}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		routerID = synced.RouterID
+		profiles, err := db.ListServiceProfiles(ctx, routerID, "hotspot", true)
+		if err != nil || len(profiles) != 1 {
+			t.Fatalf("profiles=%+v err=%v", profiles, err)
+		}
+		profileID = profiles[0].ID
+	} else {
+		synced, err := db.SyncUserManagerSnapshot(ctx, store.UserManagerSyncInput{
+			Address: address, Port: 8728, RouterIdentity: "batch-test-router", RouterOSVersion: "7.20.1",
+			Profiles: []store.ImportedUserManagerProfile{{SourceID: "*1", Name: "basic", Properties: map[string]string{"validity": "1d"}}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		routerID = synced.RouterID
+		profiles, err := db.ListServiceProfiles(ctx, routerID, "usermanager", true)
+		if err != nil || len(profiles) != 1 {
+			t.Fatalf("profiles=%+v err=%v", profiles, err)
+		}
+		profileID = profiles[0].ID
+	}
+	pkg, err := db.CreateCardPackage(ctx, store.CardPackageInput{
+		Name: "Basic test package", ServiceSystem: system, ServiceProfileID: profileID,
+		UserPriceMinor: 10000, DealerPriceMinor: 8000, DefaultPrefix: "B-", Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pkg.RouterID != routerID || pkg.RouterPort != 8728 || pkg.RouterUseTLS {
+		t.Fatalf("unexpected package router context: %+v", pkg)
+	}
+	return handler, db, pkg
+}
+
+func TestPackagedVoucherGenerationRejectsMissingPackageBeforeRouterConnection(t *testing.T) {
+	handler := testHandler(t)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.70", 999, 0, true)))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "transient-secret") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestPackagedVoucherGenerationRejectsRouterMismatchBeforeNetwork(t *testing.T) {
+	handler, _, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.71", "hotspot")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.72", pkg.ID, 0, true)))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPackagedVoucherGenerationRequiresExplicitNoTemplatePolicy(t *testing.T) {
+	handler, _, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.73", "hotspot")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.73", pkg.ID, 0, false)))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	errInfo, _ := envelope["error"].(map[string]any)
+	if errInfo["code"] != "card_template_required" {
+		t.Fatalf("unexpected error response: %#v", envelope)
+	}
+}
+
+func TestPackagedVoucherGenerationRejectsUserManagerUntilWriteAdapterExists(t *testing.T) {
+	handler, _, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.74", "usermanager")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.74", pkg.ID, 0, true)))
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPackagedVoucherGenerationRejectsDisallowedPointOfSaleBeforeNetwork(t *testing.T) {
+	handler, db, pkg := setupPackagedVoucherGenerationFixture(t, "192.0.2.75", "hotspot")
+	pos, err := db.CreatePointOfSale(context.Background(), store.PointOfSaleInput{
+		Code: "SELECTED-SHOP", Name: "Selected shop", PackageSelectionMode: "selected", Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/voucher-batches", packagedVoucherGenerationBody("192.0.2.75", pkg.ID, pos.ID, true)))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
