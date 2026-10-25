@@ -124,8 +124,14 @@ func TestPointOfSalePackageAssignmentAPI(t *testing.T){
 	if rec.Code!=http.StatusBadRequest{t.Fatalf("invalid selection mode status %d: %s",rec.Code,rec.Body.String())}
 	rules,err:=db.ListPointOfSalePackageRules(ctx,pos.ID,true)
 	if err!=nil{t.Fatal(err)}
-	if len(rules)!=2||!rules[0].IsEnabled&&!rules[1].IsEnabled{
-		t.Fatalf("invalid assignment request should not change rules: %+v",rules)
+	if len(rules)!=2{t.Fatalf("invalid assignment request changed rule count: %+v",rules)}
+	pkgOneStillAllowed,pkgTwoStillDenied:=false,false
+	for _,rule:=range rules{
+		if rule.PackageID==pkg1.ID{pkgOneStillAllowed=rule.IsEnabled&&rule.PrefixOverride!=nil&&*rule.PrefixOverride==prefix}
+		if rule.PackageID==pkg2.ID{pkgTwoStillDenied=!rule.IsEnabled}
+	}
+	if !pkgOneStillAllowed||!pkgTwoStillDenied{
+		t.Fatalf("invalid assignment request changed committed rules: %+v",rules)
 	}
 	if strings.Contains(rec.Body.String(),"router-secret"){t.Fatal("sensitive content in response")}
 }
