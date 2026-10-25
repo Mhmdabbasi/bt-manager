@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useState,type CSSProperties,type ChangeEvent,type FormEvent} from 'react';
 import {api} from '../api';
 import {formatT,t,type Language} from '../i18n';
-import type {CardPackage,HotSpotProfile,HotSpotServer,PointOfSale,Voucher,VoucherBatch,VoucherBatchResult} from '../types';
+import type {CardPackage,CardTemplate,CardTemplateElement,HotSpotProfile,HotSpotServer,PointOfSale,Voucher,VoucherBatch,VoucherBatchResult} from '../types';
 
 type RouterConnection={address:string;port:number;username:string;password:string;useTls:boolean};
 type FlashKind='success'|'danger';
@@ -70,6 +70,19 @@ export default function VoucherStudio({language,router,profiles,servers,business
  const [accent,setAccent]=useState('#147f9f');
  const [background,setBackground]=useState('');
  const [backgroundName,setBackgroundName]=useState('');
+ const [backgroundAssetId,setBackgroundAssetId]=useState(0);
+ const [designElements,setDesignElements]=useState<CardTemplateElement[]>([]);
+ const [selectedElementID,setSelectedElementID]=useState('username');
+ const [cardWidthMM,setCardWidthMM]=useState(50);
+ const [cardHeightMM,setCardHeightMM]=useState(19.1);
+ const [templateName,setTemplateName]=useState('القالب الافتراضي');
+ const [templateDefault,setTemplateDefault]=useState(true);
+ const [templates,setTemplates]=useState<CardTemplate[]>([]);
+ const [selectedTemplateID,setSelectedTemplateID]=useState('');
+ const [savingTemplate,setSavingTemplate]=useState(false);
+ const [templateLoading,setTemplateLoading]=useState(false);
+ const [pageMarginMM,setPageMarginMM]=useState(5);
+ const [pageGapMM,setPageGapMM]=useState(1);
 
  useEffect(()=>{
   let active=true;
