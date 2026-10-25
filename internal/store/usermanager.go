@@ -348,3 +348,38 @@ func parseProperties(value string) map[string]string {
 	}
 	return properties
 }
+
+func (db *DB) ListUserManagerLimitations(ctx context.Context, routerID int64) ([]UserManagerLimitationRecord, error) {
+	if routerID < 1 {
+		return nil, ErrImportedRouterNotFound
+	}
+	var exists int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM routers WHERE id=?`, routerID).Scan(&exists); err != nil {
+		return nil, err
+	}
+	if exists == 0 {
+		return nil, ErrImportedRouterNotFound
+	}
+	rows, err := db.QueryContext(ctx, `SELECT id,source_id,name,properties_json,is_present,last_seen_at
+		FROM um_limitations WHERE router_id=? ORDER BY is_present DESC,name COLLATE NOCASE`, routerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	limitations := make([]UserManagerLimitationRecord, 0)
+	for rows.Next() {
+		var limitation UserManagerLimitationRecord
+		var propertiesJSON string
+		var present int
+		if err := rows.Scan(&limitation.ID, &limitation.SourceID, &limitation.Name, &propertiesJSON, &present, &limitation.LastSeenAt); err != nil {
+			return nil, err
+		}
+		limitation.Properties = parseProperties(propertiesJSON)
+		limitation.Present = present == 1
+		limitations = append(limitations, limitation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return limitations, nil
+}
