@@ -104,4 +104,13 @@ func TestSaveCardTemplateVersionCreatesImmutableVersionsAndDefault(t *testing.T)
 	if _, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{PackageID:packageID,Name:"Invalid",CardWidthMM:0,CardHeightMM:19.1}); err == nil {
 		t.Fatal("expected invalid dimensions to be rejected")
 	}
+	pos,err:=db.CreatePointOfSale(ctx,PointOfSaleInput{Code:"TEMPLATE-SCOPE",Name:"Template Scope POS",Active:true})
+	if err!=nil { t.Fatal(err) }
+	posTemplate,err:=db.SaveCardTemplateVersion(ctx,SaveCardTemplateInput{PackageID:packageID,PointOfSaleID:pos.ID,Name:"POS card",IsDefault:true,CardWidthMM:50,CardHeightMM:19.1,DesignJSON:[]byte(`[]`),PageLayoutJSON:[]byte(`{}`)})
+	if err!=nil { t.Fatal(err) }
+	if posTemplate.ScopeKind!="point_of_sale"||posTemplate.IsDefault { t.Fatalf("unexpected POS template: %+v",posTemplate) }
+	versionID,found,err:=db.ResolveCardTemplateVersion(ctx,packageID,pos.ID,posTemplate.ID)
+	if err!=nil||!found||posTemplate.LatestVersionID==nil||versionID!=*posTemplate.LatestVersionID { t.Fatalf("POS template override: version=%d found=%v err=%v template=%+v",versionID,found,err,posTemplate) }
+	var override int64
+	if err:=db.QueryRowContext(ctx,`SELECT template_id_override FROM point_of_sale_packages WHERE point_of_sale_id=? AND package_id=?`,pos.ID,packageID).Scan(&override);err!=nil||override!=posTemplate.ID { t.Fatalf("POS package override=%d err=%v",override,err) }
 }
