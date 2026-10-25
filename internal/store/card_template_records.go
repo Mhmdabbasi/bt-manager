@@ -130,11 +130,10 @@ func validateTemplateJSON(designJSON,pageJSON []byte)([]byte,[]byte,error){
 			(element.Align!="left"&&element.Align!="center"&&element.Align!="right"){return nil,nil,errors.New("invalid design element")}
 		seen[element.ID]=true
 	}
-	if len(pageJSON)==0 { pageJSON=[]byte(`{}`) }
+	if len(pageJSON)==0 { pageJSON=[]byte(`{\"columns\":4,\"rows\":15,\"marginMm\":5,\"gapMm\":0}`) }
 	var page templatePageLayout
 	if err:=json.Unmarshal(pageJSON,&page);err!=nil{return nil,nil,errors.New("invalid page layout")}
 	if page.Columns==0{page.Columns=4};if page.Rows==0{page.Rows=15}
-	if page.MarginMM==0{page.MarginMM=5}
 	if page.Columns<1||page.Columns>10||page.Rows<1||page.Rows>40||page.MarginMM<0||page.MarginMM>20||page.GapMM<0||page.GapMM>10{return nil,nil,errors.New("invalid page layout")}
 	designJSON,err:=json.Marshal(elements);if err!=nil{return nil,nil,err}
 	pageJSON,err=json.Marshal(page);if err!=nil{return nil,nil,err}
