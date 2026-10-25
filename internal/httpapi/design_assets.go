@@ -13,7 +13,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
