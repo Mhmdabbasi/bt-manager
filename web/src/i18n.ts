@@ -743,6 +743,10 @@ const englishEntries: Array<[string, string]> = [
   ['تعذر حفظ نسخة دفعة القسائم محليًا', 'Could not save the local voucher-batch snapshot.'],
   ['أُرسلت أوامر للراوتر ولكن تعذر اعتماد سجل الدفعة والمخزون محليًا', 'Router commands were sent, but the batch and stock ledger could not be committed locally.'],
   ['تمت معالجة الدفعة لكن تعذر قراءة بطاقاتها محليًا', 'The batch was processed, but its vouchers could not be read locally.'],
+  ['بيانات دفعة الباقة غير صالحة', 'Invalid package-batch data.'],
+  ['حدد باقة صالحة وأدخل بيانات الاتصال بالراوتر', 'Select a valid package and enter the router connection details.'],
+  ['تعذر التحقق من الباقات المسموحة لنقطة البيع', 'Could not validate which packages are allowed for this point of sale.'],
+  ['تعذر إنشاء نسخة إعدادات التوليد', 'Could not create the generation-settings snapshot.'],
 ];
 
 // Duplicate source keys are intentional during incremental translation work; later entries override earlier ones.
