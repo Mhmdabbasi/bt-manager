@@ -130,6 +130,55 @@ func (s *Server) replacePointOfSalePackages(w http.ResponseWriter,r *http.Reques
 	writeJSON(w,http.StatusOK,map[string]any{"pointOfSale":pos,"packages":packages})
 }
 
+
+type pointOfSaleSaleRequest struct {
+	RequestID string `json:"requestId"`
+	PackageID int64 `json:"packageId"`
+	Quantity int `json:"quantity"`
+	PaymentMethod string `json:"paymentMethod"`
+}
+
+func (s *Server) createPointOfSalePackageSale(w http.ResponseWriter, r *http.Request) {
+	if !guardLocalMutation(w, r) { return }
+	posID, err := parsePointOfSaleID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_point_of_sale_id", "رقم نقطة البيع غير صالح")
+		return
+	}
+	var req pointOfSaleSaleRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", "بيانات البيع غير صالحة")
+		return
+	}
+	reference, err := newPOSSaleReference(req.RequestID)
+	if errors.Is(err, store.ErrInvalidPOSSale) {
+		writeError(w, http.StatusBadRequest, "invalid_sale_request_id", "معرّف طلب البيع غير صالح")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "sale_reference_failed", "تعذر إنشاء رقم البيع")
+		return
+	}
+	// Keep package-backed sale references distinct from legacy POS references.
+	reference = "CPOS-" + strings.TrimPrefix(reference, "POS-")
+	result, err := s.app.DB.CreateCardPackageSale(r.Context(), reference, posID, req.PackageID, req.Quantity, req.PaymentMethod)
+	switch {
+	case errors.Is(err, store.ErrCardPackageSaleStockUnavailable):
+		writeError(w, http.StatusConflict, "insufficient_assigned_stock", "لا يوجد رصيد كافٍ من قسائم هذه الباقة المخصصة لنقطة البيع")
+	case errors.Is(err, store.ErrCardPackageSaleNotAllowed):
+		writeError(w, http.StatusConflict, "package_not_allowed", "الباقة غير نشطة أو غير مسموحة لنقطة البيع أو لا تدعم البيع المباشر")
+	case errors.Is(err, store.ErrInvalidPOSSale):
+		writeError(w, http.StatusBadRequest, "invalid_sale", "تحقق من الباقة والكمية وطريقة الدفع")
+	case err != nil:
+		s.logger.Error("create package-backed POS sale failed", "reference", reference, "pointOfSaleId", posID, "error", err)
+		writeError(w, http.StatusInternalServerError, "sale_failed", "تعذر إتمام البيع؛ لم يتم اعتماد العملية")
+		return
+	}
+	if err != nil { return }
+	s.logger.Info("package-backed POS sale completed", "reference", result.Sale.Reference, "pointOfSaleId", posID, "quantity", len(result.Items), "totalMinor", result.Sale.TotalMinor)
+	writeJSON(w, http.StatusCreated, result)
+}
+
 func (s *Server) writePointOfSaleError(w http.ResponseWriter,err error,action string)bool{
 	if err==nil{return false}
 	switch{
