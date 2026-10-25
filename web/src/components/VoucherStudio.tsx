@@ -161,6 +161,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    const result=await api.uploadDesignAsset(file,'background');
    setBackground(result.url);
    setBackgroundName(result.asset.originalName);
+   setBackgroundAssetId(result.asset.id);
    onMessage('success',tx('تم حفظ الخلفية على الجهاز ويمكن استرجاعها بعد إعادة التشغيل.'));
   }catch(error){
    onMessage('danger',(error as Error).message||tx('تعذر حفظ ملف الخلفية.'));
@@ -206,17 +207,17 @@ export default function VoucherStudio({language,router,profiles,servers,business
     <div className="col-md-6"><label className="form-label" htmlFor="cardNote">{tx("عبارة إضافية (اختيارية)")}</label><input id="cardNote" className="form-control" value={note} onChange={event=>setNote(event.target.value)} maxLength={80} placeholder={tx("للدعم أو التواصل...")}/></div>
     <div className="col-md-6"><label className="form-label" htmlFor="cardLayout">{tx("تخطيط ورقة A4")}</label><select id="cardLayout" className="form-select form-control" value={layoutKey} onChange={event=>setLayoutKey(event.target.value as LayoutKey)}>{Object.entries(layouts).map(([key,value])=><option key={key} value={key}>{tx(value.label)}</option>)}</select></div>
     <div className="col-md-3"><label className="form-label" htmlFor="cardAccent">{tx("لون الهوية")}</label><input id="cardAccent" className="form-control form-control-color" type="color" value={accent} onChange={event=>setAccent(event.target.value)} title={tx("لون الهوية")}/></div>
-    <div className="col-md-3"><label className="form-label" htmlFor="cardBackground">{tx("خلفية مخصصة")}</label><input id="cardBackground" className="form-control" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleBackground}/>{backgroundName&&<div className="form-hint">{backgroundName} <button type="button" className="btn btn-sm btn-link p-0" onClick={()=>{setBackground('');setBackgroundName('')}}>{tx("إزالة")}</button></div>}</div>
+    <div className="col-md-3"><label className="form-label" htmlFor="cardBackground">{tx("خلفية مخصصة")}</label><input id="cardBackground" className="form-control" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleBackground}/>{backgroundName&&<div className="form-hint">{backgroundName} <button type="button" className="btn btn-sm btn-link p-0" onClick={()=>{setBackground('');setBackgroundName('');setBackgroundAssetId(0)}}>{tx("إزالة")}</button></div>}</div>
    </div>
    <div className="d-flex flex-wrap align-items-center gap-2 mt-3 no-print"><button type="button" className="btn btn-primary" disabled={!vouchers.length} onClick={()=>window.print()}><i className="bi bi-printer ms-1"/> {tx("طباعة / حفظ PDF")}</button><span className="small text-secondary">{tx("اختر «Save as PDF / حفظ كملف PDF» من نافذة الطباعة.")}</span></div>
    {(selected.batch.failedCount>0||Boolean(selected.untrackedUsernames?.length))&&<div className="alert alert-warning mt-3">{tx('لم تكتمل الدفعة بالكامل.')} {formatT(language,'حُفظت محليًا {created} من أصل {requested} قسيمة.',{created:selected.batch.createdCount,requested:selected.batch.requestedCount})} {selected.errorMessage}{selected.untrackedUsernames&&selected.untrackedUsernames.length>0&&<div className="mt-2"><b>{tx("أسماء أنشئت على الراوتر ولم تُحفظ محليًا:")}</b><div dir="ltr">{selected.untrackedUsernames.join(", ")}</div><small>{tx("لا تطبع هذه الرموز من الاستوديو قبل تسجيلها محليًا؛ فهي غير موجودة ضمن القسائم المحفوظة.")}</small></div>}</div>}
-   {!!vouchers.length&&<div className="voucher-preview-wrap mt-3"><div className="small text-secondary mb-2">{formatT(language,'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.',{count:screenPreview.length})}</div><div className="voucher-preview-grid">{screenPreview.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background}/>)}</div></div>}
+   {!!vouchers.length&&<div className="voucher-preview-wrap mt-3"><div className="small text-secondary mb-2">{formatT(language,'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.',{count:screenPreview.length})}</div><div className="voucher-preview-grid">{screenPreview.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}</div></div>}
    {!vouchers.length&&<div className="small text-secondary mt-3">{tx("لا توجد كروت ناجحة في هذه الدفعة للطباعة.")}</div>}
   </div>}
 
   {vouchers.length>0&&<div className="voucher-print-root" id="voucherPrintRoot">
    {sheets.map((sheet,index)=><div className={"voucher-sheet voucher-sheet-"+layoutKey} key={index} style={{'--voucher-columns':layout.columns,'--voucher-rows':layout.rows,'--voucher-accent':accent} as CSSProperties}>
-    {sheet.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background}/>)}
+    {sheet.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}
    </div>)}
   </div>}
  </section>;
