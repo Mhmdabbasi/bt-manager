@@ -285,6 +285,10 @@ func (db *DB) ListUserManagerProfiles(ctx context.Context, routerID int64) ([]Us
 		profiles = append(profiles, profile)
 	}
 	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
 		return nil, err
 	}
 
