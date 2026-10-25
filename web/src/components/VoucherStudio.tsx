@@ -76,7 +76,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
  const [savingTemplate,setSavingTemplate]=useState(false);
  const [templateLoading,setTemplateLoading]=useState(false);
  const [pageMarginMM,setPageMarginMM]=useState(5);
- const [pageGapMM,setPageGapMM]=useState(1);
+ const [pageGapMM,setPageGapMM]=useState(0);
 
  useEffect(()=>{
   let active=true;
@@ -109,7 +109,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    setCardWidthMM(item.cardWidthMm);setCardHeightMM(item.cardHeightMm);
    setDesignElements(Array.isArray(item.design)&&item.design.length?item.design:defaultDesign);
    const layoutKeyFound=(Object.keys(layouts) as LayoutKey[]).find(key=>layouts[key].columns===item.pageLayout?.columns&&layouts[key].rows===item.pageLayout?.rows);
-   setLayoutKey(layoutKeyFound||'4x15');setPageMarginMM(item.pageLayout?.marginMm??5);setPageGapMM(item.pageLayout?.gapMm??1);
+   setLayoutKey(layoutKeyFound||'4x15');setPageMarginMM(item.pageLayout?.marginMm??5);setPageGapMM(item.pageLayout?.gapMm??0);
    setBackgroundAssetId(item.backgroundAssetId||0);
    const asset=assetsResult.assets.find(assetItem=>assetItem.id===item.backgroundAssetId);
    setBackground(asset?'/api/design-assets/'+asset.assetKey:'');setBackgroundName(asset?.originalName||'');
@@ -120,6 +120,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
  const sheets=useMemo(()=>chunk(vouchers,layout.capacity),[vouchers,layout.capacity]);
  const sampleVoucher:Voucher={id:0,batchId:0,username:'BT-12345678',password:passwordMode==='none'?'':'1234',profileName:selectedPackage?.serviceProfileName||profile||'Profile',serverName:'all',limitUptime:limitUptime,status:'available',createdAt:''};
  const screenPreview=vouchers.length?vouchers.slice(0,6):[sampleVoucher];
+ const layoutFits=layout.columns*cardWidthMM+(layout.columns-1)*pageGapMM<=210-2*pageMarginMM+0.01&&layout.rows*cardHeightMM+(layout.rows-1)*pageGapMM<=297-2*pageMarginMM+0.01;
 
  async function generate(event:FormEvent){
   event.preventDefault();
@@ -259,6 +260,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
     </div>
     <div className="d-flex flex-wrap gap-2 mt-3"><button type="button" className="btn btn-primary" disabled={!selectedPackage||savingTemplate||templateLoading} onClick={()=>void saveTemplate()}>{savingTemplate?tx('جارٍ الحفظ...'):tx('حفظ إصدار القالب')}</button><button type="button" className="btn btn-outline-secondary" onClick={()=>{setSelectedTemplateID('');setTemplateName('قالب جديد');setTemplateDefault(false);setTemplatePointOfSaleID('');setDesignElements(defaultDesign);setBackground('');setBackgroundName('');setBackgroundAssetId(0)}}>{tx('بدء قالب جديد')}</button><span className="form-hint align-self-center">{tx('كل عملية حفظ تنشئ إصدارًا جديدًا، وتبقى الإصدارات السابقة محفوظة.')}</span></div>
    </div>
+   {!layoutFits&&<div className="alert alert-warning mt-3 no-print">{tx('مقاسات الكرت والهوامش والمسافات تتجاوز المساحة القابلة للطباعة على ورقة A4. عدّل المقاسات أو تخطيط الصفحات قبل الطباعة.')}</div>}
    <div className="d-flex flex-wrap align-items-center gap-2 mt-3 no-print"><button type="button" className="btn btn-primary" disabled={!vouchers.length} onClick={()=>window.print()}><i className="bi bi-printer ms-1"/> {tx("طباعة / حفظ PDF")}</button><span className="small text-secondary">{tx("اختر «Save as PDF / حفظ كملف PDF» من نافذة الطباعة.")}</span></div>
    {selected&&(selected.batch.failedCount>0||Boolean(selected.untrackedUsernames?.length))&&<div className="alert alert-warning mt-3">{tx('لم تكتمل الدفعة بالكامل.')} {formatT(language,'حُفظت محليًا {created} من أصل {requested} قسيمة.',{created:selected.batch.createdCount,requested:selected.batch.requestedCount})} {selected.errorMessage}{selected.untrackedUsernames&&selected.untrackedUsernames.length>0&&<div className="mt-2"><b>{tx("أسماء أنشئت على الراوتر ولم تُحفظ محليًا:")}</b><div dir="ltr">{selected.untrackedUsernames.join(", ")}</div><small>{tx("لا تطبع هذه الرموز من الاستوديو قبل تسجيلها محليًا؛ فهي غير موجودة ضمن القسائم المحفوظة.")}</small></div>}</div>}
    {!!vouchers.length&&<div className="voucher-preview-wrap mt-3"><div className="small text-secondary mb-2">{vouchers.length?formatT(language,'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.',{count:screenPreview.length}):tx('معاينة تجريبية للقالب؛ أنشئ دفعة لعرض بيانات الدخول الفعلية.')}</div><div className="voucher-preview-grid">{screenPreview.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}</div></div>}
@@ -266,7 +268,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
   </div>}
 
   {vouchers.length>0&&<div className="voucher-print-root" id="voucherPrintRoot">
-   {sheets.map((sheet,index)=><div className={"voucher-sheet voucher-sheet-"+layoutKey} key={index} style={{'--voucher-columns':layout.columns,'--voucher-rows':layout.rows,'--voucher-accent':accent,'--voucher-sheet-width':(210-pageMarginMM*2)+'mm','--voucher-sheet-height':(297-pageMarginMM*2)+'mm','--voucher-gap':pageGapMM+'mm'} as CSSProperties}>
+   {sheets.map((sheet,index)=><div className={"voucher-sheet voucher-sheet-"+layoutKey} key={index} style={{'--voucher-columns':layout.columns,'--voucher-rows':layout.rows,'--voucher-accent':accent,'--voucher-sheet-width':(210-pageMarginMM*2)+'mm','--voucher-sheet-height':(297-pageMarginMM*2)+'mm','--voucher-gap':pageGapMM+'mm','--voucher-card-width':cardWidthMM+'mm','--voucher-card-height':cardHeightMM+'mm'} as CSSProperties}>
     {sheet.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}
    </div>)}
   </div>}
