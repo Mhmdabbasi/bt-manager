@@ -627,6 +627,7 @@ const englishEntries: Array<[string, string]> = [
   ['جارٍ تحميل الكتالوج...', 'Loading catalog...'],
   ['الملف التعريفي غير موجود حاليًا على الراوتر؛ لا يمكن تفعيل هذه الباقة', 'The service profile is currently missing from the router; this package cannot be activated.'],
   ['الملف التعريفي غير موجود حاليًا على الراوتر؛ لا يمكن إنشاء باقة جديدة أو تفعيلها حتى يعود الملف التعريفي.', 'The service profile is currently missing from the router; a new package cannot be created or activated until the profile returns.'],
+  ['اتصل بالراوتر واستورد ملفات التعريف قبل إنشاء باقة جديدة.', 'Connect to the router and import profiles before creating a new package.'],
   ['نوع مصدر الباقة غير صالح؛ استخدم hotspot أو usermanager', 'Invalid package source. Use hotspot or usermanager.'],
   ['تعذر قراءة دليل باقات الكروت', 'Could not read the card package catalog.'],
   ['بيانات باقة الكروت غير صالحة', 'Invalid card package data.'],
