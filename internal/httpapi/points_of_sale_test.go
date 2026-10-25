@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -77,7 +78,7 @@ func TestPointOfSaleAPIValidationAndOriginGuard(t *testing.T){
 
 func TestPointOfSalePackageAssignmentAPI(t *testing.T){
 	handler,db:=pointOfSaleTestHandler(t)
-	ctx:=t.Context()
+	ctx:=context.Background()
 	_,err:=db.SyncHotSpotProfilesSnapshot(ctx,store.HotSpotProfileSyncInput{
 		Address:"192.0.2.41",Port:8728,RouterIdentity:"api-pos-router",RouterOSVersion:"7.20.1",
 		Profiles:[]store.ImportedServiceProfile{{SourceID:"*1",Name:"basic"},{SourceID:"*2",Name:"premium"}},
