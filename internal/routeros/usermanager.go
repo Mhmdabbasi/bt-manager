@@ -61,7 +61,7 @@ func pathsForUserManagerVersion(version string) (userManagerPaths, int, error) {
 	case 6:
 		return userManagerPaths{
 			profiles: "/tool/user-manager/profile/print",
-			limitations: "/tool/user-manager/limitation/print",
+			limitations: "/tool/user-manager/profile/limitation/print",
 			profileLimitations: "/tool/user-manager/profile/profile-limitation/print",
 			profileProperties: ".id,name,owner,name-for-users,starts-at,override-shared-users,price,validity",
 			limitationProperties: ".id,name,owner,group-name,rate-limit,transfer-limit,uptime-limit,download-limit,upload-limit,address-list,ip-pool",
