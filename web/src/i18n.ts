@@ -709,6 +709,10 @@ const englishEntries: Array<[string, string]> = [
   ['حُفظت القواعد ولكن تعذر قراءة نقطة البيع', 'The rules were saved, but point-of-sale details could not be read.'],
   ['لا توجد باقات في الكتالوج. أنشئ باقة أولًا من دليل باقات الكروت.', 'There are no packages in the catalog. Create one in the Card Package Catalog first.'],
   ['نقطة البيع موقوفة؛ أعد تفعيلها قبل حفظ قواعد جديدة.', 'This point of sale is inactive. Reactivate it before saving new rules.'],
+  ['تم إنشاء نقطة البيع «{name}».', 'Created point of sale “{name}”.'],
+  ['تم تحديث نقطة البيع «{name}».', 'Updated point of sale “{name}”.'],
+  ['تم تفعيل نقطة البيع.', 'Point of sale reactivated.'],
+  ['تم إيقاف نقطة البيع مع الاحتفاظ بسجلاتها.', 'Point of sale deactivated; its records were preserved.'],
 ];
 
 // Duplicate source keys are intentional during incremental translation work; later entries override earlier ones.
