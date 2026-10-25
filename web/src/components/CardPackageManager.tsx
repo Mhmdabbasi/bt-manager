@@ -158,7 +158,7 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
   };
   setSaving(true);
   try{
-   const updated=await api.updateCardPackage(pkg.id,payload);
+   const updated=pkg.active?await api.archiveCardPackage(pkg.id):await api.updateCardPackage(pkg.id,payload);
    setPackages(old=>old.map(item=>item.id===updated.id?updated:item));
    onMessage('success',formatT(language,'تم تحديث باقة الكروت «{name}».',{name:updated.name}));
    setReloadKey(key=>key+1);
