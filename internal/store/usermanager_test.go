@@ -39,6 +39,13 @@ func TestSyncUserManagerSnapshotPersistsProfilesAndMultipleLimitations(t *testin
 	if first.ProfileCount != 2 || first.LimitationCount != 2 || first.RelationshipCount != 3 {
 		t.Fatalf("unexpected sync counts: %+v", first)
 	}
+	allLimitations, err := db.ListUserManagerLimitations(ctx, first.RouterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allLimitations) != 2 || !allLimitations[0].Present || !allLimitations[1].Present {
+		t.Fatalf("unexpected standalone limitation inventory: %+v", allLimitations)
+	}
 
 	profiles, err := db.ListUserManagerProfiles(ctx, first.RouterID)
 	if err != nil {
