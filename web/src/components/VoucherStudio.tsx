@@ -117,7 +117,8 @@ export default function VoucherStudio({language,router,profiles,servers,business
  },[selectedPackage?.id]);
  const vouchers=selected?.vouchers??[];
  const sheets=useMemo(()=>chunk(vouchers,layout.capacity),[vouchers,layout.capacity]);
- const screenPreview=vouchers.slice(0,6);
+ const sampleVoucher:Voucher={id:0,batchId:0,username:'BT-12345678',password:passwordMode==='none'?'':'1234',profileName:selectedPackage?.serviceProfileName||profile||'Profile',serverName:'all',limitUptime:limitUptime,status:'available',createdAt:''};
+ const screenPreview=vouchers.length?vouchers.slice(0,6):[sampleVoucher];
 
  async function generate(event:FormEvent){
   event.preventDefault();
@@ -232,7 +233,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    </select>
   </div>}
 
-  {selected&&<div className="voucher-print-settings">
+  {(selected||selectedPackage)&&<div className="voucher-print-settings">
    <div className="hotspot-section-title mt-4"><h3>{tx("استوديو تصميم الكروت")}</h3><span>{vouchers.length} {tx('كرت متاح')}</span></div>
    <div className="row g-3">
     <div className="col-md-6"><label className="form-label" htmlFor="cardTitle">{tx("اسم الشبكة على الكرت")}</label><input id="cardTitle" className="form-control" value={cardTitle} onChange={event=>setCardTitle(event.target.value)} maxLength={80}/></div>
@@ -257,8 +258,8 @@ export default function VoucherStudio({language,router,profiles,servers,business
     <div className="d-flex flex-wrap gap-2 mt-3"><button type="button" className="btn btn-primary" disabled={!selectedPackage||savingTemplate||templateLoading} onClick={()=>void saveTemplate()}>{savingTemplate?tx('جارٍ الحفظ...'):tx('حفظ إصدار القالب')}</button><button type="button" className="btn btn-outline-secondary" onClick={()=>{setSelectedTemplateID('');setTemplateName('قالب جديد');setTemplateDefault(false);setDesignElements(defaultDesign);setBackground('');setBackgroundName('');setBackgroundAssetId(0)}}>{tx('بدء قالب جديد')}</button><span className="form-hint align-self-center">{tx('كل عملية حفظ تنشئ إصدارًا جديدًا، وتبقى الإصدارات السابقة محفوظة.')}</span></div>
    </div>
    <div className="d-flex flex-wrap align-items-center gap-2 mt-3 no-print"><button type="button" className="btn btn-primary" disabled={!vouchers.length} onClick={()=>window.print()}><i className="bi bi-printer ms-1"/> {tx("طباعة / حفظ PDF")}</button><span className="small text-secondary">{tx("اختر «Save as PDF / حفظ كملف PDF» من نافذة الطباعة.")}</span></div>
-   {(selected.batch.failedCount>0||Boolean(selected.untrackedUsernames?.length))&&<div className="alert alert-warning mt-3">{tx('لم تكتمل الدفعة بالكامل.')} {formatT(language,'حُفظت محليًا {created} من أصل {requested} قسيمة.',{created:selected.batch.createdCount,requested:selected.batch.requestedCount})} {selected.errorMessage}{selected.untrackedUsernames&&selected.untrackedUsernames.length>0&&<div className="mt-2"><b>{tx("أسماء أنشئت على الراوتر ولم تُحفظ محليًا:")}</b><div dir="ltr">{selected.untrackedUsernames.join(", ")}</div><small>{tx("لا تطبع هذه الرموز من الاستوديو قبل تسجيلها محليًا؛ فهي غير موجودة ضمن القسائم المحفوظة.")}</small></div>}</div>}
-   {!!vouchers.length&&<div className="voucher-preview-wrap mt-3"><div className="small text-secondary mb-2">{formatT(language,'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.',{count:screenPreview.length})}</div><div className="voucher-preview-grid">{screenPreview.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}</div></div>}
+   {selected&&(selected.batch.failedCount>0||Boolean(selected.untrackedUsernames?.length))&&<div className="alert alert-warning mt-3">{tx('لم تكتمل الدفعة بالكامل.')} {formatT(language,'حُفظت محليًا {created} من أصل {requested} قسيمة.',{created:selected.batch.createdCount,requested:selected.batch.requestedCount})} {selected.errorMessage}{selected.untrackedUsernames&&selected.untrackedUsernames.length>0&&<div className="mt-2"><b>{tx("أسماء أنشئت على الراوتر ولم تُحفظ محليًا:")}</b><div dir="ltr">{selected.untrackedUsernames.join(", ")}</div><small>{tx("لا تطبع هذه الرموز من الاستوديو قبل تسجيلها محليًا؛ فهي غير موجودة ضمن القسائم المحفوظة.")}</small></div>}</div>}
+   {!!vouchers.length&&<div className="voucher-preview-wrap mt-3"><div className="small text-secondary mb-2">{vouchers.length?formatT(language,'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.',{count:screenPreview.length}):tx('معاينة تجريبية للقالب؛ أنشئ دفعة لعرض بيانات الدخول الفعلية.')}</div><div className="voucher-preview-grid">{screenPreview.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}</div></div>}
    {!vouchers.length&&<div className="small text-secondary mt-3">{tx("لا توجد كروت ناجحة في هذه الدفعة للطباعة.")}</div>}
   </div>}
 
