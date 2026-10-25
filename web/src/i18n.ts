@@ -566,7 +566,17 @@ const englishEntries: Array<[string, string]> = [
   ['أعاد User Manager بيانات غير مكتملة أو غير متوافقة؛ لم تُحدّث البيانات المحلية', 'User Manager returned incomplete or inconsistent data; the local snapshot was not updated.'],
   ['تمت قراءة User Manager ولكن تعذر حفظ النسخة المحلية؛ لم تُعتمد المزامنة', 'User Manager was read, but the local snapshot could not be saved; sync was not committed.'],
   ['تعذرت قراءة الملفات التعريفية المستوردة', 'Could not read the imported profiles.'],
-  ['استيراد Profiles وLimitations وعرض القيود المرتبطة بها حسب إصدار RouterOS.', 'Import profiles and limitations and display their relationships for the detected RouterOS version.']
+  ['استيراد Profiles وLimitations وعرض القيود المرتبطة بها حسب إصدار RouterOS.', 'Import profiles and limitations and display their relationships for the detected RouterOS version.'],
+  ['اكتملت مزامنة User Manager: {profiles} ملفًا و{limitations} قيدًا و{relations} علاقة.', 'User Manager sync completed: {profiles} profiles, {limitations} limitations, and {relations} relationships.'],
+  ['جميع القيود المستوردة', 'All imported limitations'],
+  ['تظهر هنا القيود حتى إن لم تكن مرتبطة حاليًا بملف تعريفي.', 'Limitations are listed here even when they are not currently linked to a profile.'],
+  ['قيد', 'limitations'],
+  ['لم يعثر User Manager على قيود.', 'User Manager returned no limitations.'],
+  ['اسم القيد', 'Limitation name'],
+  ['الحالة', 'Status'],
+  ['خصائص القيد', 'Limitation properties'],
+  ['آخر ظهور', 'Last seen'],
+  ['مزامنة من الراوتر', 'Sync from router']
 ];
 
 // Duplicate source keys are intentional during incremental translation work; later entries override earlier ones.
