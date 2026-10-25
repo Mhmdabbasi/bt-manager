@@ -45,7 +45,7 @@ type SaveCardTemplateInput struct {
 
 func (db *DB) ListCardTemplates(ctx context.Context, packageID int64) ([]CardTemplateRecord, error) {
 	query := `SELECT t.id,t.package_id,t.point_of_sale_id,t.scope_kind,t.name,t.is_default,t.active,
-		v.id,COALESCE(v.version_number,0),COALESCE(v.card_width_mm,50),COALESCE(v.card_height_mm,30),
+		v.id,COALESCE(v.version_number,0),COALESCE(v.card_width_mm,50),COALESCE(v.card_height_mm,19.1),
 		COALESCE(v.design_json,'{}'),COALESCE(v.page_layout_json,'{}'),v.background_asset_id,t.created_at,t.updated_at
 		FROM card_templates t LEFT JOIN card_template_versions v ON v.id=(
 			SELECT v2.id FROM card_template_versions v2 WHERE v2.template_id=t.id ORDER BY v2.version_number DESC LIMIT 1)
