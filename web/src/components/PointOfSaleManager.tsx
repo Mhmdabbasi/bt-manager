@@ -48,12 +48,13 @@ export default function PointOfSaleManager({language,currencyCode,currencySymbol
  },[reloadKey]);
 
  useEffect(()=>{
-  if(!selectedID){setRules([]);setSelectionMode('all');return}
+  if(selectedID===null){setRules([]);setSelectionMode('all');return}
+  const pointOfSaleID=selectedID;
   let alive=true;
   async function loadRules(){
    setLoadingRules(true);
    try{
-    const result=await api.pointOfSalePackages(selectedID,true);
+    const result=await api.pointOfSalePackages(pointOfSaleID,true);
     if(alive){setRules(result.packages);setSelectionMode(result.pointOfSale.packageSelectionMode)}
    }catch(error){if(alive)onMessage('danger',tx((error as Error).message))}
    finally{if(alive)setLoadingRules(false)}
@@ -71,10 +72,6 @@ export default function PointOfSaleManager({language,currencyCode,currencySymbol
   setSelectedID(point.id);
   setEditingID(point.id);
   setForm({code:point.code,name:point.name,phone:point.phone,address:point.address,notes:point.notes,active:point.active});
- }
- function startEdit(point:PointOfSale){
-  selectPoint(point);
-  setEditingID(point.id);
  }
  async function savePoint(event:FormEvent){
   event.preventDefault();
