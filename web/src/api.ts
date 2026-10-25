@@ -1,4 +1,4 @@
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord,CardPackage,CardPackageInput,ServiceSystem,PointOfSale,PointOfSaleInput,PointOfSalePackagesResponse,PointOfSalePackageRuleInput,CardPackageSaleResult,DesignAsset} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord,CardPackage,CardPackageInput,ServiceSystem,PointOfSale,PointOfSaleInput,PointOfSalePackagesResponse,PointOfSalePackageRuleInput,CardPackageSaleResult,DesignAsset,CardTemplate,CardTemplateElement} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
  let response:Response;
@@ -15,6 +15,9 @@ async function request<T>(url:string,init?:RequestInit):Promise<T>{
  return payload as T;
 }
 export const api={
+ cardTemplates:(packageId=0)=>request<{templates:CardTemplate[]}>(`/api/card-templates?packageId=${packageId}`),
+ saveCardTemplate:(input:{id?:number;packageId:number;pointOfSaleId?:number;name:string;isDefault:boolean;cardWidthMm:number;cardHeightMm:number;design:CardTemplateElement[];pageLayout:{columns:number;rows:number;marginMm:number;gapMm:number};backgroundAssetId?:number})=>request<{template:CardTemplate}>('/api/card-templates',{method:'POST',body:JSON.stringify(input)}),
+
  designAssets:()=>request<{assets:DesignAsset[]}>('/api/design-assets'),
  uploadDesignAsset:async(file:File,assetKind:'background'|'image'='background')=>{
   if(file.size<1||file.size>8*1024*1024)throw new Error('حجم الصورة يجب ألا يتجاوز 8 ميجابايت.');
