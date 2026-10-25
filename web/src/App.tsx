@@ -3,13 +3,14 @@ import {api} from './api';
 import HotSpotManager from './components/HotSpotManager';
 import UserManagerManager from './components/UserManagerManager';
 import CardPackageManager from './components/CardPackageManager';
+import PointOfSaleManager from './components/PointOfSaleManager';
 import {formatT,t,type Language} from './i18n';
 import {setBootstrapDirection} from './bootstrapStyles';
 import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,UserManagerOverview} from './types';
 
 const defaults:AppSettings={businessName:'bt-manager',currencyCode:'YER',currencySymbol:'ر.ي',setupComplete:false};
 type Flash={kind:'success'|'danger';message:string}|null;
-type Page='dashboard'|'settings'|'hotspot-users'|'hotspot-profiles'|'hotspot-sessions'|'hotspot-servers'|'vouchers'|'pos'|'user-manager'|'card-packages';
+type Page='dashboard'|'settings'|'hotspot-users'|'hotspot-profiles'|'hotspot-sessions'|'hotspot-servers'|'vouchers'|'pos'|'user-manager'|'card-packages'|'points-of-sale';
 type HotSpotView='users'|'profiles'|'sessions'|'servers'|'vouchers'|'pos';
 const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
  dashboard:{title:'نظرة عامة',eyebrow:'لوحة التحكم',description:'ملخص حالة التطبيق والشبكة وأهم وحدات العمل.'},
@@ -21,7 +22,8 @@ const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
  vouchers:{title:'دفعات الكروت والطباعة',eyebrow:'قسائم HotSpot',description:'إنشاء دفعات الدخول وضبط الرموز وتصميم الكروت وطباعتها.'},
  pos:{title:'نقطة البيع',eyebrow:'المبيعات',description:'تعريف الباقات وبيع القسائم المتوفرة ومراجعة الإيصالات.'},
  'user-manager':{title:'User Manager',eyebrow:'إدارة RADIUS',description:'استيراد Profiles وLimitations وعرض القيود المرتبطة بها حسب إصدار RouterOS.'},
- 'card-packages':{title:'دليل باقات الكروت',eyebrow:'كتالوج الباقات',description:'ربط الباقات التجارية بملفات HotSpot أو User Manager، وتحديد أسعار المستخدم والموزع.'}
+ 'card-packages':{title:'دليل باقات الكروت',eyebrow:'كتالوج الباقات',description:'ربط الباقات التجارية بملفات HotSpot أو User Manager، وتحديد أسعار المستخدم والموزع.'},
+ 'points-of-sale':{title:'نقاط البيع والموزعون',eyebrow:'إدارة التوزيع',description:'إدارة بيانات الموزعين وتحديد الباقات المسموح بها وقواعد التوزيع.'}
 };
 const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:boolean}[]}[]=[
  {label:'عام',items:[{page:'dashboard',label:'نظرة عامة',icon:'bi-grid-1x2-fill'},{page:'settings',label:'الإعدادات والاتصال',icon:'bi-router'}]},
@@ -35,6 +37,7 @@ const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:bo
  {label:'البيع وإدارة المستخدمين',items:[
   {page:'pos',label:'نقطة البيع',icon:'bi-shop'},
   {page:'card-packages',label:'دليل باقات الكروت',icon:'bi-collection'},
+  {page:'points-of-sale',label:'نقاط البيع والموزعون',icon:'bi-shop-window'}, 
   {page:'user-manager',label:'User Manager',icon:'bi-person-gear'}
  ]}
 ];
@@ -239,6 +242,7 @@ export default function App(){
 
    {page==='user-manager'&&<UserManagerManager language={language} overview={userManagerOverview} loading={loadingUserManager} onRefresh={()=>void loadUserManager()}/>}
    {page==='card-packages'&&<CardPackageManager language={language} routerId={routerCatalogId} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onMessage={(kind,message)=>setFlash({kind,message})} onRefreshHotSpot={()=>void loadHotspot(false)} onRefreshUserManager={()=>void loadUserManager(false)}/>}
+   {page==='points-of-sale'&&<PointOfSaleManager language={language} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onMessage={(kind,message)=>setFlash({kind,message})}/>}
 
    <footer className="page-footer"><div><span className="footer-mark">bt</span><span>bt-manager <small>· إدارة محلية لشبكات MikroTik</small></span></div><span><i className="bi bi-shield-check"/> {language==='ar'?'يعمل على جهازك':'Runs locally on your device'}</span></footer>
   </main>
