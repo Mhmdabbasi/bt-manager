@@ -56,15 +56,25 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
    setLoading(true);
    try{
     const packageResult=await api.cardPackages(true);
-    let imported:ServiceProfileRecord[]=[];
+    const importedByID=new Map<number,ServiceProfileRecord>();
     if(routerId){
      const [hotspotResult,userManagerResult]=await Promise.all([
       api.serviceProfiles(routerId,'hotspot',true),
       api.serviceProfiles(routerId,'usermanager',true),
      ]);
-     imported=[...hotspotResult.profiles,...userManagerResult.profiles];
+     for(const profile of [...hotspotResult.profiles,...userManagerResult.profiles])importedByID.set(profile.id,profile);
+    }else{
+     for(const pkg of packageResult.packages){
+      if(!importedByID.has(pkg.serviceProfileId)){
+       importedByID.set(pkg.serviceProfileId,{
+        id:pkg.serviceProfileId,routerId:pkg.routerId,sourceSystem:pkg.serviceSystem,
+        sourceId:String(pkg.serviceProfileId),name:pkg.serviceProfileName,properties:{},
+        present:pkg.serviceProfilePresent,lastSeenAt:pkg.updatedAt,
+       });
+      }
+     }
     }
-    if(active){setPackages(packageResult.packages);setProfiles(imported)}
+    if(active){setPackages(packageResult.packages);setProfiles([...importedByID.values()])}
    }catch(error){
     if(active)onMessage('danger',tx((error as Error).message));
    }finally{
@@ -106,6 +116,10 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
  }
  async function submit(event:FormEvent){
   event.preventDefault();
+  if(editingID===null&&!routerId){
+   onMessage('danger',tx('اتصل بالراوتر واستورد ملفات التعريف قبل إنشاء باقة جديدة.'));
+   return;
+  }
   if(!selectedProfile||selectedProfile.sourceSystem!==form.serviceSystem){
    onMessage('danger',tx('اختر ملف خدمة مستوردًا من النوع المحدد.'));
    return;
@@ -142,7 +156,7 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
    resetForm();
    setReloadKey(key=>key+1);
   }catch(error){
-   onMessage('danger',(error as Error).message);
+   onMessage('danger',tx((error as Error).message));
   }finally{
    setSaving(false);
   }
@@ -201,7 +215,7 @@ export default function CardPackageManager({language,routerId,currencyCode,curre
    </div>
    {selectedProfile&&!selectedProfile.present&&<div className="alert alert-warning mt-3 mb-0">{tx('الملف التعريفي المحدد غير موجود حاليًا على الراوتر. يمكنك حفظ الباقة غير نشطة، لكن لا يمكن تفعيلها حتى يعود الملف التعريفي.')}</div>}
    <div className="helper-box mt-3"><i className="bi bi-shield-check"/><span>{tx('لا يُحذف سجل الباقة نهائيًا؛ أوقفها بدلًا من حذفها حتى تبقى المراجع والتاريخ المالي المستقبلي متسقة. الأسعار تُحفظ بوحدات العملة الصغرى بدقة منزلتين عشريتين.')}</span></div>
-   <div className="d-flex flex-wrap gap-2 mt-3"><button className="btn btn-primary" type="submit" disabled={saving||!validPrice||!selectedProfileCanBeSaved}>{saving?tx('جارٍ الحفظ...'):editingID!==null?tx('حفظ التغييرات'):tx('إنشاء الباقة')}</button>{editingID!==null&&<button type="button" className="btn btn-light" onClick={resetForm} disabled={saving}>{tx('إلغاء')}</button>}</div>
+   <div className="d-flex flex-wrap gap-2 mt-3"><button className="btn btn-primary" type="submit" disabled={saving||!validPrice||!selectedProfileCanBeSaved||(editingID===null&&!routerId)}>{saving?tx('جارٍ الحفظ...'):editingID!==null?tx('حفظ التغييرات'):tx('إنشاء الباقة')}</button>{editingID!==null&&<button type="button" className="btn btn-light" onClick={resetForm} disabled={saving}>{tx('إلغاء')}</button>}</div>
   </form>
 
   <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4 mb-2">
