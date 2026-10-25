@@ -126,7 +126,7 @@ func (db *DB) GetVoucherProduct(ctx context.Context, id int64) (VoucherProduct, 
 
 func (db *DB) ListVoucherProducts(ctx context.Context, includeInactive bool) ([]VoucherProduct, error) {
 	query := `SELECT p.id,p.name,p.profile_name,p.server_name,p.limit_uptime,p.price_minor,p.active,
-		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.limit_uptime=p.limit_uptime AND v.status='available'),
+		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.limit_uptime=p.limit_uptime AND v.package_id IS NULL AND v.point_of_sale_id IS NULL AND v.status='available'),
 		p.created_at,p.updated_at FROM voucher_products p`
 	if !includeInactive {
 		query += " WHERE p.active=1"
