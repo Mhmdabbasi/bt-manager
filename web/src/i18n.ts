@@ -626,6 +626,22 @@ const englishEntries: Array<[string, string]> = [
   ['باقة الكروت «{name}»', 'Card package “{name}”.'],
   ['جارٍ تحميل الكتالوج...', 'Loading catalog...'],
   ['الملف التعريفي غير موجود حاليًا على الراوتر؛ لا يمكن تفعيل هذه الباقة', 'The service profile is currently missing from the router; this package cannot be activated.'],
+  ['الملف التعريفي غير موجود حاليًا على الراوتر؛ لا يمكن إنشاء باقة جديدة أو تفعيلها حتى يعود الملف التعريفي.', 'The service profile is currently missing from the router; a new package cannot be created or activated until the profile returns.'],
+  ['نوع مصدر الباقة غير صالح؛ استخدم hotspot أو usermanager', 'Invalid package source. Use hotspot or usermanager.'],
+  ['تعذر قراءة دليل باقات الكروت', 'Could not read the card package catalog.'],
+  ['بيانات باقة الكروت غير صالحة', 'Invalid card package data.'],
+  ['رقم باقة الكروت غير صالح', 'Invalid card package ID.'],
+  ['باقة الكروت غير موجودة', 'Card package not found.'],
+  ['تعذر قراءة باقة الكروت قبل تعديلها', 'Could not read the card package before updating it.'],
+  ['الملف التعريفي المحدد غير موجود في الكتالوج المحلي؛ استورد الملفات من الراوتر أولًا', 'The selected service profile is not in the local catalog. Import profiles from the router first.'],
+  ['الملف التعريفي غير موجود حاليًا على الراوتر؛ لا يمكن تفعيل هذه الباقة', 'The service profile is currently missing from the router; this package cannot be activated.'],
+  ['توجد باقة أخرى بالاسم نفسه', 'Another package already uses this name.'],
+  ['تحقق من اسم الباقة ونوع الخدمة والملف التعريفي والأسعار والبادئة', 'Check the package name, service system, profile, prices, and prefix.'],
+  ['تعذر حفظ باقة الكروت', 'Could not save the card package.'],
+  ['تعذر تحديث باقة الكروت', 'Could not update the card package.'],
+  ['تعذر قراءة باقة الكروت', 'Could not read the card package.'],
+  ['تعذر إيقاف باقة الكروت', 'Could not deactivate the card package.'],
+  ['توجد باقة أخرى بهذا الاسم', 'Another package already uses this name.'],
 ];
 
 // Duplicate source keys are intentional during incremental translation work; later entries override earlier ones.
