@@ -10,12 +10,13 @@ func TestPathsForUserManagerVersion(t *testing.T) {
 		name             string
 		version          string
 		wantMajor        int
-		wantProfiles     string
+		wantProfiles      string
+		wantLimitations   string
 		wantRelationships string
 		wantErr          bool
 	}{
-		{name: "RouterOS v6", version: "6.49.17 (long-term)", wantMajor: 6, wantProfiles: "/tool/user-manager/profile/print", wantRelationships: "/tool/user-manager/profile/profile-limitation/print"},
-		{name: "RouterOS v7", version: "7.20.1 (stable)", wantMajor: 7, wantProfiles: "/user-manager/profile/print", wantRelationships: "/user-manager/profile-limitation/print"},
+		{name: "RouterOS v6", version: "6.49.17 (long-term)", wantMajor: 6, wantProfiles: "/tool/user-manager/profile/print", wantLimitations: "/tool/user-manager/profile/limitation/print", wantRelationships: "/tool/user-manager/profile/profile-limitation/print"},
+		{name: "RouterOS v7", version: "7.20.1 (stable)", wantMajor: 7, wantProfiles: "/user-manager/profile/print", wantLimitations: "/user-manager/limitation/print", wantRelationships: "/user-manager/profile-limitation/print"},
 		{name: "RouterOS v8 unknown", version: "8.0beta", wantMajor: 8, wantErr: true},
 		{name: "missing version", version: "unknown", wantErr: true},
 	}
@@ -39,6 +40,9 @@ func TestPathsForUserManagerVersion(t *testing.T) {
 			}
 			if paths.profiles != test.wantProfiles {
 				t.Fatalf("profiles path=%q, want %q", paths.profiles, test.wantProfiles)
+			}
+			if paths.limitations != test.wantLimitations {
+				t.Fatalf("limitations path=%q, want %q", paths.limitations, test.wantLimitations)
 			}
 			if paths.profileLimitations != test.wantRelationships {
 				t.Fatalf("relationship path=%q, want %q", paths.profileLimitations, test.wantRelationships)
