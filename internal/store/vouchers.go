@@ -187,6 +187,7 @@ func (db *DB) FinishVoucherBatch(ctx context.Context, id int64, reportedFailed i
 		return VoucherBatch{}, err
 	}
 	if currentStatus != "running" {
+		_ = tx.Rollback()
 		return db.GetVoucherBatch(ctx, id)
 	}
 	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM vouchers WHERE batch_id=?`, id).Scan(&created); err != nil {
