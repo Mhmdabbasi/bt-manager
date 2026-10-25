@@ -312,3 +312,5 @@ export interface PointOfSalePackagesResponse {
   pointOfSale: PointOfSale;
   packages: PointOfSalePackageRule[];
 }
+
+export interface DesignAsset {id:number;assetKey:string;assetKind:'background'|'image';originalName:string;mimeType:'image/png'|'image/jpeg'|'image/webp';sizeBytes:number;sha256:string;widthPx?:number;heightPx?:number;createdAt:string}
