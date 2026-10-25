@@ -141,22 +141,20 @@ func ReadUserManagerSnapshot(ctx context.Context, request TestRequest) (UserMana
 		Limitations: make([]UserManagerLimitation, 0, len(limitationRows)),
 		ProfileLimitations: make([]UserManagerProfileLimitation, 0, len(relationRows)),
 	}
-	profileNames := make(map[string]struct{}, len(profileRows))
-	limitationNames := make(map[string]struct{}, len(limitationRows))
+	profilesByName := make(map[string][]UserManagerProfile, len(profileRows))
+	limitationsByName := make(map[string][]UserManagerLimitation, len(limitationRows))
 	for _, row := range profileRows {
 		name := strings.TrimSpace(row["name"])
 		sourceID := sourceIdentity(row, name)
 		if name == "" || sourceID == "" {
 			return UserManagerSnapshot{}, ErrInvalidUserManagerSnapshot
 		}
-		if _, duplicate := profileNames[name]; duplicate {
-			return UserManagerSnapshot{}, fmt.Errorf("%w: duplicate profile name", ErrInvalidUserManagerSnapshot)
-		}
-		profileNames[name] = struct{}{}
-		snapshot.Profiles = append(snapshot.Profiles, UserManagerProfile{
+		profile := UserManagerProfile{
 			SourceID: sourceID, Name: name,
 			Properties: safeProperties(row, strings.Split(paths.profileProperties, ",")),
-		})
+		}
+		snapshot.Profiles = append(snapshot.Profiles, profile)
+		profilesByName[name] = append(profilesByName[name], profile)
 	}
 	for _, row := range limitationRows {
 		name := strings.TrimSpace(row["name"])
@@ -164,14 +162,12 @@ func ReadUserManagerSnapshot(ctx context.Context, request TestRequest) (UserMana
 		if name == "" || sourceID == "" {
 			return UserManagerSnapshot{}, ErrInvalidUserManagerSnapshot
 		}
-		if _, duplicate := limitationNames[name]; duplicate {
-			return UserManagerSnapshot{}, fmt.Errorf("%w: duplicate limitation name", ErrInvalidUserManagerSnapshot)
-		}
-		limitationNames[name] = struct{}{}
-		snapshot.Limitations = append(snapshot.Limitations, UserManagerLimitation{
+		limitation := UserManagerLimitation{
 			SourceID: sourceID, Name: name,
 			Properties: safeProperties(row, strings.Split(paths.limitationProperties, ",")),
-		})
+		}
+		snapshot.Limitations = append(snapshot.Limitations, limitation)
+		limitationsByName[name] = append(limitationsByName[name], limitation)
 	}
 	for i, row := range relationRows {
 		profileName := strings.TrimSpace(row["profile"])
@@ -179,15 +175,18 @@ func ReadUserManagerSnapshot(ctx context.Context, request TestRequest) (UserMana
 		if profileName == "" || limitationName == "" {
 			return UserManagerSnapshot{}, fmt.Errorf("%w: incomplete profile-limitation relationship", ErrInvalidUserManagerSnapshot)
 		}
-		if _, ok := profileNames[profileName]; !ok {
-			return UserManagerSnapshot{}, fmt.Errorf("%w: relationship references an unavailable profile", ErrInvalidUserManagerSnapshot)
+		owner := strings.TrimSpace(row["owner"])
+		profile, profileOK := matchProfileByOwner(profilesByName[profileName], owner)
+		if !profileOK {
+			return UserManagerSnapshot{}, fmt.Errorf("%w: relationship references an unavailable or ambiguous profile", ErrInvalidUserManagerSnapshot)
 		}
-		if _, ok := limitationNames[limitationName]; !ok {
-			return UserManagerSnapshot{}, fmt.Errorf("%w: relationship references an unavailable limitation", ErrInvalidUserManagerSnapshot)
+		limitation, limitationOK := matchLimitationByOwner(limitationsByName[limitationName], owner)
+		if !limitationOK {
+			return UserManagerSnapshot{}, fmt.Errorf("%w: relationship references an unavailable or ambiguous limitation", ErrInvalidUserManagerSnapshot)
 		}
 		snapshot.ProfileLimitations = append(snapshot.ProfileLimitations, UserManagerProfileLimitation{
-			ProfileSourceID: profileName, ProfileName: profileName,
-			LimitationSourceID: limitationName, LimitationName: limitationName,
+			ProfileSourceID: profile.SourceID, ProfileName: profile.Name,
+			LimitationSourceID: limitation.SourceID, LimitationName: limitation.Name,
 			Position: i,
 			Properties: safeProperties(row, strings.Split(paths.relationProperties, ",")),
 		})
@@ -214,4 +213,46 @@ func safeProperties(row map[string]string, allowed []string) map[string]string {
 		}
 	}
 	return properties
+}
+
+func matchProfileByOwner(candidates []UserManagerProfile, owner string) (UserManagerProfile, bool) {
+	if len(candidates) == 0 {
+		return UserManagerProfile{}, false
+	}
+	if owner == "" {
+		if len(candidates) == 1 {
+			return candidates[0], true
+		}
+		return UserManagerProfile{}, false
+	}
+	var match UserManagerProfile
+	count := 0
+	for _, candidate := range candidates {
+		if candidate.Properties["owner"] == owner {
+			match = candidate
+			count++
+		}
+	}
+	return match, count == 1
+}
+
+func matchLimitationByOwner(candidates []UserManagerLimitation, owner string) (UserManagerLimitation, bool) {
+	if len(candidates) == 0 {
+		return UserManagerLimitation{}, false
+	}
+	if owner == "" {
+		if len(candidates) == 1 {
+			return candidates[0], true
+		}
+		return UserManagerLimitation{}, false
+	}
+	var match UserManagerLimitation
+	count := 0
+	for _, candidate := range candidates {
+		if candidate.Properties["owner"] == owner {
+			match = candidate
+			count++
+		}
+	}
+	return match, count == 1
 }
