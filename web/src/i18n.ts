@@ -578,6 +578,10 @@ const englishEntries: Array<[string, string]> = [
   ['خصائص القيد', 'Limitation properties'],
   ['آخر ظهور', 'Last seen'],
   ['مزامنة من الراوتر', 'Sync from router']
+  ['تم تحميل بيانات HotSpot، لكن تعذرت مزامنة ملفات التعريف إلى الكتالوج المحلي: {error}', 'HotSpot data loaded, but profile sync to the local catalog failed: {error}'],
+  ['تمت قراءة HotSpot ومزامنة {profiles} ملفًا تعريفيًا؛ {users} مستخدم و{sessions} جلسة نشطة.', 'HotSpot loaded and synced {profiles} profiles; {users} users and {sessions} active sessions.'],
+  ['ملفات الخدمة المحلية', 'Local service profiles'],
+  ['ملفات التعريف المخزنة محليًا', 'Locally stored profiles'],
 ];
 
 // Duplicate source keys are intentional during incremental translation work; later entries override earlier ones.
