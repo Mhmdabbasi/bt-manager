@@ -43,6 +43,8 @@ func New(application *app.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("POST /api/router/hotspot/overview", s.hotspotOverview)
 	mux.HandleFunc("POST /api/router/hotspot/profiles/sync", s.syncHotSpotProfiles)
 	mux.HandleFunc("GET /api/service-profiles", s.listServiceProfiles)
+	mux.HandleFunc("GET /api/card-templates", s.listCardTemplates)
+	mux.HandleFunc("POST /api/card-templates", s.saveCardTemplate)
 	mux.HandleFunc("GET /api/design-assets", s.listDesignAssets)
 	mux.HandleFunc("POST /api/design-assets", s.uploadDesignAsset)
 	mux.HandleFunc("GET /api/design-assets/{key}", s.getDesignAsset)
