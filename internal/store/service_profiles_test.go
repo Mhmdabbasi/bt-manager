@@ -90,3 +90,52 @@ func TestListServiceProfilesRejectsInvalidSystemAndRouter(t *testing.T) {
 		t.Fatalf("router error=%v, want ErrImportedRouterNotFound", err)
 	}
 }
+
+
+func TestHotSpotAndUserManagerProfilesShareRouterCatalogWithoutNameCollisions(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "shared-profile-catalog.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+
+	hotspot, err := db.SyncHotSpotProfilesSnapshot(ctx, HotSpotProfileSyncInput{
+		Address: "192.0.2.13", Port: 8728, RouterIdentity: "shared-router", RouterOSVersion: "7.20.1", Model: "CHR",
+		Profiles: []ImportedServiceProfile{{SourceID: "*1", Name: "default", Properties: map[string]string{"rate-limit": "2M/2M"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	userManager, err := db.SyncUserManagerSnapshot(ctx, UserManagerSyncInput{
+		Address: "192.0.2.13", Port: 8728, RouterIdentity: "shared-router", RouterOSVersion: "7.20.1", Model: "CHR",
+		Profiles: []ImportedUserManagerProfile{{SourceID: "*1", Name: "default", Properties: map[string]string{"validity": "30d"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hotspot.RouterID != userManager.RouterID {
+		t.Fatalf("same router has two local IDs: HotSpot=%d UserManager=%d", hotspot.RouterID, userManager.RouterID)
+	}
+
+	hotspotProfiles, err := db.ListServiceProfiles(ctx, hotspot.RouterID, "hotspot", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	umProfiles, err := db.ListServiceProfiles(ctx, hotspot.RouterID, "usermanager", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hotspotProfiles) != 1 || len(umProfiles) != 1 || hotspotProfiles[0].ID == umProfiles[0].ID {
+		t.Fatalf("source-specific profiles collided: hotspot=%+v um=%+v", hotspotProfiles, umProfiles)
+	}
+	packageResult, err := db.ExecContext(ctx, `INSERT INTO card_packages
+		(name,service_system,service_profile_id,user_price_minor,dealer_price_minor)
+		VALUES('HotSpot Starter','hotspot',?,20000,16000)`, hotspotProfiles[0].ID)
+	if err != nil {
+		t.Fatalf("HotSpot card package could not reference its imported service profile: %v", err)
+	}
+	if _, err := packageResult.LastInsertId(); err != nil {
+		t.Fatal(err)
+	}
+}
