@@ -1,4 +1,4 @@
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord,CardPackage,CardPackageInput,ServiceSystem} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
  let response:Response;
@@ -22,6 +22,9 @@ export const api={
  hotspotOverview:(v:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<HotSpotOverview>('/api/router/hotspot/overview',{method:'POST',body:JSON.stringify(v),signal:AbortSignal.timeout(30000)}),
  syncHotSpotProfiles:(router:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<HotSpotProfileSyncResponse>('/api/router/hotspot/profiles/sync',{method:'POST',body:JSON.stringify({router}),signal:AbortSignal.timeout(30000)}),
  serviceProfiles:(routerId:number,system:'hotspot'|'usermanager',includeMissing=true)=>request<{profiles:ServiceProfileRecord[]}>('/api/service-profiles?routerId='+encodeURIComponent(String(routerId))+'&system='+system+'&includeMissing='+String(includeMissing)),
+ cardPackages:(includeInactive=true,system?:ServiceSystem)=>request<{packages:CardPackage[]}>('/api/card-packages?includeInactive='+String(includeInactive)+(system?'&system='+system:'')),
+ createCardPackage:(payload:CardPackageInput)=>request<CardPackage>('/api/card-packages',{method:'POST',body:JSON.stringify(payload)}),
+ updateCardPackage:(id:number,payload:CardPackageInput)=>request<CardPackage>('/api/card-packages/'+id,{method:'PUT',body:JSON.stringify(payload)}),
  syncUserManager:(router:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<UserManagerOverview>('/api/router/usermanager/sync',{method:'POST',body:JSON.stringify({router}),signal:AbortSignal.timeout(30000)}),
  userManagerProfiles:(routerId:number)=>request<{profiles:UserManagerProfile[];limitations:UserManagerLimitation[]}>('/api/usermanager/profiles?routerId='+encodeURIComponent(String(routerId))),
  createHotSpotUser:(router:{address:string;port:number;username:string;password:string;useTls:boolean},user:{name:string;password:string;profile:string;server:string;limitUptime:string;comment:string})=>request<{status:string}>('/api/router/hotspot/users/create',{method:'POST',body:JSON.stringify({router,user}),signal:AbortSignal.timeout(30000)}),
