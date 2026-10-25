@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -24,8 +25,19 @@ type VoucherBatch struct {
 	CreatedCount    int    `json:"createdCount"`
 	FailedCount     int    `json:"failedCount"`
 	Status          string `json:"status"`
-	ErrorMessage    string `json:"errorMessage,omitempty"`
-	CreatedAt       string `json:"createdAt"`
+	ErrorMessage           string            `json:"errorMessage,omitempty"`
+	RouterID               *int64            `json:"routerId,omitempty"`
+	PackageID              *int64            `json:"packageId,omitempty"`
+	PointOfSaleID          *int64            `json:"pointOfSaleId,omitempty"`
+	TemplateVersionID      *int64            `json:"templateVersionId,omitempty"`
+	ServiceSystemSnapshot  string            `json:"serviceSystemSnapshot"`
+	PackageNameSnapshot    string            `json:"packageNameSnapshot,omitempty"`
+	UserPriceMinorSnapshot *int64            `json:"userPriceMinorSnapshot,omitempty"`
+	DealerPriceMinorSnapshot *int64          `json:"dealerPriceMinorSnapshot,omitempty"`
+	GenerationConfig       map[string]any    `json:"generationConfig,omitempty"`
+	ServiceProfileSnapshot map[string]string `json:"serviceProfileSnapshot,omitempty"`
+	LimitationSnapshot     []map[string]any  `json:"limitationSnapshot,omitempty"`
+	CreatedAt              string            `json:"createdAt"`
 }
 
 type Voucher struct {
@@ -52,6 +64,17 @@ type NewVoucherBatch struct {
 	PasswordLength  int
 	PasswordCharset string
 	RequestedCount  int
+	RouterID                 int64
+	PackageID                int64
+	PointOfSaleID            int64
+	TemplateVersionID        int64
+	ServiceSystemSnapshot    string
+	PackageNameSnapshot      string
+	UserPriceMinorSnapshot   *int64
+	DealerPriceMinorSnapshot *int64
+	GenerationConfigJSON     string
+	ServiceProfileSnapshotJSON string
+	LimitationSnapshotJSON     string
 }
 
 var ErrVoucherBatchNotFound = errors.New("voucher batch not found")
@@ -73,13 +96,38 @@ func (db *DB) BeginVoucherBatch(ctx context.Context, batch NewVoucherBatch) (Vou
 	if batch.ServerName == "" {
 		batch.ServerName = "all"
 	}
+	if batch.ServiceSystemSnapshot == "" {
+		batch.ServiceSystemSnapshot = "hotspot"
+	}
+	if batch.ServiceSystemSnapshot != "hotspot" && batch.ServiceSystemSnapshot != "usermanager" {
+		return VoucherBatch{}, errors.New("invalid voucher batch service system")
+	}
+	if batch.PackageID > 0 && (batch.RouterID < 1 || batch.PackageNameSnapshot == "" ||
+		batch.UserPriceMinorSnapshot == nil || batch.DealerPriceMinorSnapshot == nil ||
+		batch.PointOfSaleID > 0 && batch.ServiceSystemSnapshot == "") {
+		return VoucherBatch{}, errors.New("incomplete package voucher batch snapshot")
+	}
+	batch.GenerationConfigJSON = defaultJSON(batch.GenerationConfigJSON, "{}")
+	batch.ServiceProfileSnapshotJSON = defaultJSON(batch.ServiceProfileSnapshotJSON, "{}")
+	batch.LimitationSnapshotJSON = defaultJSON(batch.LimitationSnapshotJSON, "[]")
+	if !json.Valid([]byte(batch.GenerationConfigJSON)) || !json.Valid([]byte(batch.ServiceProfileSnapshotJSON)) ||
+		!json.Valid([]byte(batch.LimitationSnapshotJSON)) {
+		return VoucherBatch{}, errors.New("invalid voucher batch snapshot JSON")
+	}
 	result, err := db.ExecContext(ctx, `INSERT INTO voucher_batches
 		(reference,prefix,profile_name,server_name,limit_uptime,username_length,username_mode,
-		password_mode,password_length,password_charset,requested_count,status)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,'running')`,
+		password_mode,password_length,password_charset,requested_count,status,router_id,package_id,
+		point_of_sale_id,template_version_id,service_system_snapshot,package_name_snapshot,
+		user_price_minor_snapshot,dealer_price_minor_snapshot,generation_config_json,
+		service_profile_snapshot_json,limitation_snapshot_json)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,'running',?,?,?,?,?,?,?,?,?,?,?)`,
 		batch.Reference, batch.Prefix, batch.ProfileName, batch.ServerName,
 		batch.LimitUptime, batch.UsernameLength, batch.UsernameMode, batch.PasswordMode,
-		batch.PasswordLength, batch.PasswordCharset, batch.RequestedCount)
+		batch.PasswordLength, batch.PasswordCharset, batch.RequestedCount,
+		nullableID(batch.RouterID), nullableID(batch.PackageID), nullableID(batch.PointOfSaleID),
+		nullableID(batch.TemplateVersionID), batch.ServiceSystemSnapshot, batch.PackageNameSnapshot,
+		nullableInt64(batch.UserPriceMinorSnapshot), nullableInt64(batch.DealerPriceMinorSnapshot),
+		batch.GenerationConfigJSON, batch.ServiceProfileSnapshotJSON, batch.LimitationSnapshotJSON)
 	if err != nil {
 		return VoucherBatch{}, fmt.Errorf("create voucher batch: %w", err)
 	}
@@ -100,15 +148,16 @@ func (db *DB) AddVoucher(ctx context.Context, batchID int64, username string, pa
 	// Read the batch metadata before adding a voucher so the stored card
 	// always reflects the profile/server settings used for this batch.
 	var profile, server, uptime, status string
-	if err := db.QueryRowContext(ctx, `SELECT profile_name,server_name,limit_uptime,status FROM voucher_batches WHERE id=?`, batchID).
-		Scan(&profile, &server, &uptime, &status); err != nil {
+	var packageID, pointOfSaleID sql.NullInt64
+	if err := db.QueryRowContext(ctx, `SELECT profile_name,server_name,limit_uptime,status,package_id,point_of_sale_id FROM voucher_batches WHERE id=?`, batchID).
+		Scan(&profile, &server, &uptime, &status, &packageID, &pointOfSaleID); err != nil {
 		return Voucher{}, err
 	}
 	if status != "running" {
 		return Voucher{}, errors.New("voucher batch is not running")
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO vouchers(batch_id,username,password,profile_name,server_name,limit_uptime) VALUES(?,?,?,?,?,?)`,
-		batchID, username, password, profile, server, uptime); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO vouchers(batch_id,username,password,profile_name,server_name,limit_uptime,package_id,point_of_sale_id) VALUES(?,?,?,?,?,?,?,?)`,
+		batchID, username, password, profile, server, uptime, nullableSQLInt64(packageID), nullableSQLInt64(pointOfSaleID)); err != nil {
 		return Voucher{}, fmt.Errorf("save voucher %s: %w", username, err)
 	}
 	return db.getVoucherByUsername(ctx, username)
