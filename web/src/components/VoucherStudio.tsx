@@ -104,7 +104,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    if(!active)return;
    setTemplates(result.templates);
    const item=result.templates.find(template=>template.isDefault&&template.scopeKind==='global')||result.templates.find(template=>template.scopeKind==='global');
-   if(!item)return;
+   if(!item){setSelectedTemplateID('');setTemplateName('القالب الافتراضي');setTemplateDefault(true);setTemplatePointOfSaleID('');setDesignElements(defaultDesign);setCardWidthMM(50);setCardHeightMM(19.1);setPageMarginMM(5);setPageGapMM(0);setBackgroundAssetId(0);setBackground('');setBackgroundName('');setLayoutKey('4x15');return}
    setSelectedTemplateID(String(item.id));setTemplateName(item.name);setTemplateDefault(item.isDefault);setTemplatePointOfSaleID(item.pointOfSaleId?String(item.pointOfSaleId):'');
    setCardWidthMM(item.cardWidthMm);setCardHeightMM(item.cardHeightMm);
    setDesignElements(Array.isArray(item.design)&&item.design.length?item.design:defaultDesign);
