@@ -125,3 +125,44 @@ export interface POSSaleResult {
   sale: POSSale;
   items: POSSaleItem[];
 }
+
+export interface UserManagerLimitation {
+  id: number;
+  sourceId: string;
+  name: string;
+  properties: Record<string,string>;
+  present: boolean;
+  lastSeenAt: string;
+}
+export interface UserManagerProfileLimitation {
+  position: number;
+  properties: Record<string,string>;
+  limitation: UserManagerLimitation;
+}
+export interface UserManagerProfile {
+  id: number;
+  routerId: number;
+  sourceId: string;
+  name: string;
+  properties: Record<string,string>;
+  present: boolean;
+  lastSeenAt: string;
+  limitations: UserManagerProfileLimitation[];
+}
+export interface UserManagerSyncSummary {
+  routerId: number;
+  routerKey: string;
+  routerIdentity: string;
+  routerOsVersion: string;
+  model: string;
+  profileCount: number;
+  limitationCount: number;
+  relationshipCount: number;
+  syncedAt: string;
+}
+export interface UserManagerOverview {
+  sync: UserManagerSyncSummary;
+  router: RouterInfo;
+  majorVersion: number;
+  profiles: UserManagerProfile[];
+}
