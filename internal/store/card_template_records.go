@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -28,6 +29,116 @@ type CardTemplateRecord struct {
 	BackgroundAssetID *int64 `json:"backgroundAssetId,omitempty"`
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
+}
+
+type templateDesignElement struct {
+	ID string `json:"id"`
+	Field string `json:"field"`
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	Width float64 `json:"width"`
+	FontSize float64 `json:"fontSize"`
+	Color string `json:"color"`
+	Align string `json:"align"`
+	Bold bool `json:"bold"`
+	Visible *bool `json:"visible,omitempty"`
+}
+type templatePageLayout struct {
+	Columns int `json:"columns"`
+	Rows int `json:"rows"`
+	MarginMM float64 `json:"marginMm"`
+	GapMM float64 `json:"gapMm"`
+}
+var templateElementIDPattern=regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}package store
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var ErrCardTemplateNotFound = errors.New("card template not found")
+
+type CardTemplateRecord struct {
+	ID int64 `json:"id"`
+	PackageID int64 `json:"packageId"`
+	PointOfSaleID *int64 `json:"pointOfSaleId,omitempty"`
+	ScopeKind string `json:"scopeKind"`
+	Name string `json:"name"`
+	IsDefault bool `json:"isDefault"`
+	Active bool `json:"active"`
+	LatestVersionID *int64 `json:"latestVersionId,omitempty"`
+	VersionNumber int `json:"versionNumber"`
+	CardWidthMM float64 `json:"cardWidthMm"`
+	CardHeightMM float64 `json:"cardHeightMm"`
+	DesignJSON json.RawMessage `json:"design"`
+	PageLayoutJSON json.RawMessage `json:"pageLayout"`
+	BackgroundAssetID *int64 `json:"backgroundAssetId,omitempty"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+)
+var templateHexColorPattern=regexp.MustCompile(`^#[0-9A-Fa-f]{6}package store
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var ErrCardTemplateNotFound = errors.New("card template not found")
+
+type CardTemplateRecord struct {
+	ID int64 `json:"id"`
+	PackageID int64 `json:"packageId"`
+	PointOfSaleID *int64 `json:"pointOfSaleId,omitempty"`
+	ScopeKind string `json:"scopeKind"`
+	Name string `json:"name"`
+	IsDefault bool `json:"isDefault"`
+	Active bool `json:"active"`
+	LatestVersionID *int64 `json:"latestVersionId,omitempty"`
+	VersionNumber int `json:"versionNumber"`
+	CardWidthMM float64 `json:"cardWidthMm"`
+	CardHeightMM float64 `json:"cardHeightMm"`
+	DesignJSON json.RawMessage `json:"design"`
+	PageLayoutJSON json.RawMessage `json:"pageLayout"`
+	BackgroundAssetID *int64 `json:"backgroundAssetId,omitempty"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+)
+func validateTemplateJSON(designJSON,pageJSON []byte)([]byte,[]byte,error){
+	if len(designJSON)==0 { designJSON=[]byte(`[]`) }
+	var elements []templateDesignElement
+	if err:=json.Unmarshal(designJSON,&elements);err!=nil||elements==nil||len(elements)>50{return nil,nil,errors.New("invalid design elements")}
+	seen:=map[string]bool{}
+	allowed:=map[string]bool{"title":true,"usernameLabel":true,"username":true,"passwordLabel":true,"password":true,"profile":true,"uptime":true,"note":true}
+	for _,element:=range elements{
+		if !templateElementIDPattern.MatchString(element.ID)||seen[element.ID]||!allowed[element.Field]||
+			element.X<0||element.X>100||element.Y<0||element.Y>100||element.Width<1||element.Width>100||
+			element.FontSize<4||element.FontSize>72||!templateHexColorPattern.MatchString(element.Color)||
+			(element.Align!="left"&&element.Align!="center"&&element.Align!="right"){return nil,nil,errors.New("invalid design element")}
+		seen[element.ID]=true
+	}
+	if len(pageJSON)==0 { pageJSON=[]byte(`{}`) }
+	var page templatePageLayout
+	if err:=json.Unmarshal(pageJSON,&page);err!=nil{return nil,nil,errors.New("invalid page layout")}
+	if page.Columns==0{page.Columns=4};if page.Rows==0{page.Rows=15}
+	if page.MarginMM==0{page.MarginMM=5}
+	if page.Columns<1||page.Columns>10||page.Rows<1||page.Rows>40||page.MarginMM<0||page.MarginMM>20||page.GapMM<0||page.GapMM>10{return nil,nil,errors.New("invalid page layout")}
+	designJSON,err:=json.Marshal(elements);if err!=nil{return nil,nil,err}
+	pageJSON,err=json.Marshal(page);if err!=nil{return nil,nil,err}
+	return designJSON,pageJSON,nil
 }
 
 type SaveCardTemplateInput struct {
@@ -74,9 +185,9 @@ func (db *DB) SaveCardTemplateVersion(ctx context.Context, input SaveCardTemplat
 	input.Name=strings.TrimSpace(input.Name)
 	if input.PackageID<1 || input.Name=="" || len(input.Name)>100 || input.CardWidthMM<=0 || input.CardWidthMM>300 ||
 		input.CardHeightMM<=0 || input.CardHeightMM>300 { return CardTemplateRecord{}, errors.New("invalid card template") }
-	if len(input.DesignJSON)==0 { input.DesignJSON=json.RawMessage(`{}`) }
-	if len(input.PageLayoutJSON)==0 { input.PageLayoutJSON=json.RawMessage(`{}`) }
-	if !json.Valid(input.DesignJSON)||!json.Valid(input.PageLayoutJSON) { return CardTemplateRecord{},errors.New("invalid template JSON") }
+	designJSON,pageJSON,validationErr:=validateTemplateJSON(input.DesignJSON,input.PageLayoutJSON)
+	if validationErr!=nil{return CardTemplateRecord{},validationErr}
+	input.DesignJSON=json.RawMessage(designJSON);input.PageLayoutJSON=json.RawMessage(pageJSON)
 	tx,err:=db.BeginTx(ctx,nil); if err!=nil{return CardTemplateRecord{},err}; defer tx.Rollback()
 	scope:="global"; var pos any
 	if input.PointOfSaleID>0 { scope="point_of_sale"; pos=input.PointOfSaleID; input.IsDefault=false }
