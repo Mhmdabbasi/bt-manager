@@ -20,7 +20,8 @@ type userManagerOverviewResponse struct {
 	Sync         store.UserManagerSyncResult  `json:"sync"`
 	Router       routerosadapter.RouterInfo   `json:"router"`
 	MajorVersion int                          `json:"majorVersion"`
-	Profiles     []store.UserManagerProfileRecord `json:"profiles"`
+	Profiles     []store.UserManagerProfileRecord     `json:"profiles"`
+	Limitations  []store.UserManagerLimitationRecord  `json:"limitations"`
 }
 
 func (s *Server) syncUserManager(w http.ResponseWriter, r *http.Request) {
@@ -95,9 +96,15 @@ func (s *Server) syncUserManager(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "usermanager_saved_profiles_read_failed", "تم حفظ المزامنة ولكن تعذر عرض الملفات والقيود")
 		return
 	}
+	limitationRecords, err := s.app.DB.ListUserManagerLimitations(ctx, syncResult.RouterID)
+	if err != nil {
+		s.logger.Error("read saved User Manager limitations failed", "routerId", syncResult.RouterID, "error", err)
+		writeError(w, http.StatusInternalServerError, "usermanager_saved_limitations_read_failed", "تم حفظ المزامنة ولكن تعذر عرض القيود")
+		return
+	}
 	writeJSON(w, http.StatusOK, userManagerOverviewResponse{
 		Sync: syncResult, Router: snapshot.Router, MajorVersion: snapshot.MajorVersion,
-		Profiles: profileRecords,
+		Profiles: profileRecords, Limitations: limitationRecords,
 	})
 }
 
@@ -117,7 +124,13 @@ func (s *Server) listSavedUserManagerProfiles(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusInternalServerError, "usermanager_profiles_read_failed", "تعذر قراءة الملفات التعريفية المستوردة")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"profiles": profiles})
+	limitations, err := s.app.DB.ListUserManagerLimitations(r.Context(), routerID)
+	if err != nil {
+		s.logger.Error("list saved User Manager limitations failed", "routerId", routerID, "error", err)
+		writeError(w, http.StatusInternalServerError, "usermanager_limitations_read_failed", "تعذر قراءة القيود المستوردة")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"profiles": profiles, "limitations": limitations})
 }
 
 func effectiveRouterPort(request routerosadapter.TestRequest) int {
