@@ -220,3 +220,31 @@ func TestArchiveCardPackagePreservesRecord(t *testing.T) {
 		t.Fatalf("missing package archive error=%v", err)
 	}
 }
+
+func TestCardPackageCanUseUserManagerProfile(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "card-packages-user-manager.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	synced, err := db.SyncUserManagerSnapshot(ctx, UserManagerSyncInput{
+		Address: "192.0.2.26", Port: 8728, RouterIdentity: "radius-router", RouterOSVersion: "7.20.1",
+		Profiles: []ImportedUserManagerProfile{{SourceID: "*1", Name: "monthly", Properties: map[string]string{"validity": "30d"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, err := db.CreateCardPackage(ctx, CardPackageInput{
+		Name: "Monthly User Manager", ServiceSystem: "usermanager", ServiceProfileID: 1,
+		Description: "Monthly RADIUS package", UserPriceMinor: 50000, DealerPriceMinor: 40000,
+		Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pkg.ServiceSystem != "usermanager" || pkg.ServiceProfileName != "monthly" ||
+		pkg.RouterID != synced.RouterID || !pkg.ServiceProfilePresent {
+		t.Fatalf("unexpected User Manager package: %+v", pkg)
+	}
+}
