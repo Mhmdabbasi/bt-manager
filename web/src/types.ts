@@ -69,6 +69,17 @@ export interface VoucherBatch {
   failedCount: number;
   status: 'running' | 'completed' | 'partial' | 'failed';
   errorMessage?: string;
+  routerId?: number;
+  packageId?: number;
+  pointOfSaleId?: number;
+  templateVersionId?: number;
+  serviceSystemSnapshot: 'hotspot' | 'usermanager';
+  packageNameSnapshot?: string;
+  userPriceMinorSnapshot?: number;
+  dealerPriceMinorSnapshot?: number;
+  generationConfig?: Record<string, unknown>;
+  serviceProfileSnapshot?: Record<string, string>;
+  limitationSnapshot?: Array<Record<string, unknown>>;
   createdAt: string;
 }
 export interface Voucher {
@@ -204,6 +215,8 @@ export interface CardPackage {
   serviceProfilePresent: boolean;
   routerId: number;
   routerAddress: string;
+  routerPort: number;
+  routerUseTls: boolean;
   routerIdentity: string;
   description: string;
   userPriceMinor: number;
