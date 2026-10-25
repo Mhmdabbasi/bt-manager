@@ -64,6 +64,7 @@ export default function PointOfSaleManager({language,currencyCode,currencySymbol
 
  function resetForm(){
   setEditingID(null);
+  setSelectedID(null);
   setForm({...emptyForm});
  }
  function selectPoint(point:PointOfSale){
