@@ -1,4 +1,4 @@
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
  let response:Response;
@@ -21,7 +21,7 @@ export const api={
  testRouter:(v:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<{status:string;router:RouterInfo}>('/api/router/test',{method:'POST',body:JSON.stringify(v),signal:AbortSignal.timeout(15000)}),
  hotspotOverview:(v:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<HotSpotOverview>('/api/router/hotspot/overview',{method:'POST',body:JSON.stringify(v),signal:AbortSignal.timeout(30000)}),
  syncUserManager:(router:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<UserManagerOverview>('/api/router/usermanager/sync',{method:'POST',body:JSON.stringify({router}),signal:AbortSignal.timeout(30000)}),
- userManagerProfiles:(routerId:number)=>request<{profiles:UserManagerProfile[];limitations:import('./types').UserManagerLimitation[]}>('/api/usermanager/profiles?routerId='+encodeURIComponent(String(routerId))),
+ userManagerProfiles:(routerId:number)=>request<{profiles:UserManagerProfile[];limitations:UserManagerLimitation[]}>('/api/usermanager/profiles?routerId='+encodeURIComponent(String(routerId))),
  createHotSpotUser:(router:{address:string;port:number;username:string;password:string;useTls:boolean},user:{name:string;password:string;profile:string;server:string;limitUptime:string;comment:string})=>request<{status:string}>('/api/router/hotspot/users/create',{method:'POST',body:JSON.stringify({router,user}),signal:AbortSignal.timeout(30000)}),
  updateHotSpotUser:(router:{address:string;port:number;username:string;password:string;useTls:boolean},user:{id:string;name:string;password:string;profile:string;server:string;limitUptime:string;comment:string})=>request<{status:string}>('/api/router/hotspot/users/update',{method:'POST',body:JSON.stringify({router,user}),signal:AbortSignal.timeout(30000)}),
  setHotSpotUserDisabled:(router:{address:string;port:number;username:string;password:string;useTls:boolean},id:string,disabled:boolean)=>request<{status:string}>('/api/router/hotspot/users/state',{method:'POST',body:JSON.stringify({router,id,disabled}),signal:AbortSignal.timeout(30000)}),
