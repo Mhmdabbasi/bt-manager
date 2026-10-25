@@ -45,6 +45,8 @@ func New(application *app.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /api/service-profiles", s.listServiceProfiles)
 	mux.HandleFunc("GET /api/card-packages", s.listCardPackages)
 	mux.HandleFunc("POST /api/card-packages", s.createCardPackage)
+	mux.HandleFunc("GET /api/card-packages/{id}", s.getCardPackage)
+	mux.HandleFunc("POST /api/card-packages/{id}/archive", s.archiveCardPackage)
 	mux.HandleFunc("PUT /api/card-packages/{id}", s.updateCardPackage)
 	mux.HandleFunc("POST /api/router/usermanager/sync", s.syncUserManager)
 	mux.HandleFunc("GET /api/usermanager/profiles", s.listSavedUserManagerProfiles)
