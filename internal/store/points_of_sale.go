@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode"
 )
 
 var (
@@ -276,4 +275,3 @@ func scanPointOfSale(row pointOfSaleRowScanner)(PointOfSale,error){
 }
 func nullableString(value *string)any{if value==nil{return nil};return *value}
 func nullableInt64(value *int64)any{if value==nil{return nil};return *value}
-func hasPointOfSaleControlCharacters(value string)bool{for _,r:=range value{if unicode.IsControl(r){return true}};return false}
