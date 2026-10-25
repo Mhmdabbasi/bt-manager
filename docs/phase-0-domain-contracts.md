@@ -124,9 +124,13 @@ The shared service-profile API currently supports reading/synchronizing HotSpot 
 
 The local **Points of Sale & Distributors** UI supports creating, updating, deactivating/reactivating distributors and configuring allowed packages. Saving assignments does not generate vouchers, allocate inventory, or record a sale.
 
-**Still planned — distribution execution and inventory**
+**Implemented — initial allocation during package-backed generation**
 
-The assignment rules are a prerequisite for the forthcoming unified voucher-batch generation, actual stock allocation/transfer ledger operations, template rendering, and print jobs. Those workflows must consume these rules; this catalog alone does not represent a stock movement or financial transaction.
+Package-backed HotSpot batch generation now consumes these rules. A successful batch writes an `issue` stock movement for the generated cards, then an `allocate` movement to the selected point of sale when one was chosen. The batch finalization and initial inventory movements commit atomically. The earlier direct retail POS flow remains separate and does not get converted into distributor inventory.
+
+**Still planned — further inventory operations and durable printing**
+
+Manual allocation of previously generated stock, transfer between points of sale, returns, adjustments, reconciliation views, durable template rendering, and print-job workflows still need their own APIs and UI. A generated batch is not a financial settlement, and initial allocation does not imply that the distributor has paid.
 
 Use stable IDs in requests. Archive rather than delete records that have been referenced by a batch or movement.
 
