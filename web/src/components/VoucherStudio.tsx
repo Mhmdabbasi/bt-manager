@@ -168,6 +168,18 @@ export default function VoucherStudio({language,router,profiles,servers,business
   finally{setLoadingBatch(false)}
  }
 
+ async function saveTemplate(){
+  if(!selectedPackage){onMessage('danger',tx('اختر باقة كروت أولًا لحفظ القالب.'));return}
+  setSavingTemplate(true);
+  try{
+   const result=await api.saveCardTemplate({...(selectedTemplateID?{id:Number(selectedTemplateID)}:{}),packageId:selectedPackage.id,name:templateName.trim()||'قالب الكروت',isDefault:templateDefault,cardWidthMm:cardWidthMM,cardHeightMm:cardHeightMM,design:designElements,pageLayout:{columns:layout.columns,rows:layout.rows,marginMm:pageMarginMM,gapMm:pageGapMM},...(backgroundAssetId?{backgroundAssetId}:{})});
+   setTemplates(old=>[result.template,...old.filter(item=>item.id!==result.template.id)]);setSelectedTemplateID(String(result.template.id));
+   onMessage('success',tx('تم حفظ إصدار جديد من قالب التصميم.'));
+  }catch(error){onMessage('danger',(error as Error).message||tx('تعذر حفظ القالب.'))}
+  finally{setSavingTemplate(false)}
+ }
+ function updateElement(id:string,patch:Partial<CardTemplateElement>){setDesignElements(old=>old.map(element=>element.id===id?{...element,...patch}:element))}
+ const selectedElement=designElements.find(element=>element.id===selectedElementID)||designElements[0];
  async function handleBackground(event:ChangeEvent<HTMLInputElement>){
   const input=event.currentTarget;
   const file=input.files?.[0];
