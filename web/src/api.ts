@@ -1,4 +1,4 @@
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord,CardPackage,CardPackageInput,ServiceSystem,PointOfSale,PointOfSaleInput,PointOfSalePackagesResponse,PointOfSalePackageRuleInput,CardPackageSaleResult} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord,CardPackage,CardPackageInput,ServiceSystem,PointOfSale,PointOfSaleInput,PointOfSalePackagesResponse,PointOfSalePackageRuleInput,CardPackageSaleResult,DesignAsset} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
  let response:Response;
@@ -15,6 +15,20 @@ async function request<T>(url:string,init?:RequestInit):Promise<T>{
  return payload as T;
 }
 export const api={
+ designAssets:()=>request<{assets:DesignAsset[]}>('/api/design-assets'),
+ uploadDesignAsset:async(file:File,assetKind:'background'|'image'='background')=>{
+  if(file.size<1||file.size>8*1024*1024)throw new Error('حجم الصورة يجب ألا يتجاوز 8 ميجابايت.');
+  if(!['image/png','image/jpeg','image/webp'].includes(file.type))throw new Error('يسمح فقط بصور PNG وJPG وWebP.');
+  const dataURL=await new Promise<string>((resolve,reject)=>{
+   const reader=new FileReader();
+   reader.onload=()=>typeof reader.result==='string'?resolve(reader.result):reject(new Error('تعذرت قراءة الصورة.'));
+   reader.onerror=()=>reject(new Error('تعذرت قراءة الصورة.'));
+   reader.readAsDataURL(file);
+  });
+  const dataBase64=dataURL.slice(dataURL.indexOf(',')+1);
+  return request<{asset:DesignAsset;url:string}>('/api/design-assets',{method:'POST',body:JSON.stringify({assetKind,originalName:file.name,dataBase64})});
+ },
+
  health:()=>request<HealthResponse>('/api/health'),
  settings:()=>request<AppSettings>('/api/settings'),
  saveSettings:(s:AppSettings)=>request<AppSettings>('/api/settings',{method:'PUT',body:JSON.stringify(s)}),
