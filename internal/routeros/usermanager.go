@@ -169,7 +169,8 @@ func ReadUserManagerSnapshot(ctx context.Context, request TestRequest) (UserMana
 		snapshot.Limitations = append(snapshot.Limitations, limitation)
 		limitationsByName[name] = append(limitationsByName[name], limitation)
 	}
-	for i, row := range relationRows {
+	relationshipPositions := make(map[string]int)
+	for _, row := range relationRows {
 		profileName := strings.TrimSpace(row["profile"])
 		limitationName := strings.TrimSpace(row["limitation"])
 		if profileName == "" || limitationName == "" {
@@ -184,10 +185,12 @@ func ReadUserManagerSnapshot(ctx context.Context, request TestRequest) (UserMana
 		if !limitationOK {
 			return UserManagerSnapshot{}, fmt.Errorf("%w: relationship references an unavailable or ambiguous limitation", ErrInvalidUserManagerSnapshot)
 		}
+		position := relationshipPositions[profile.SourceID]
+		relationshipPositions[profile.SourceID] = position + 1
 		snapshot.ProfileLimitations = append(snapshot.ProfileLimitations, UserManagerProfileLimitation{
 			ProfileSourceID: profile.SourceID, ProfileName: profile.Name,
 			LimitationSourceID: limitation.SourceID, LimitationName: limitation.Name,
-			Position: i,
+			Position: position,
 			Properties: safeProperties(row, strings.Split(paths.relationProperties, ",")),
 		})
 	}
