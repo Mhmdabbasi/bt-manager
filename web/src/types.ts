@@ -314,3 +314,6 @@ export interface PointOfSalePackagesResponse {
 }
 
 export interface DesignAsset {id:number;assetKey:string;assetKind:'background'|'image';originalName:string;mimeType:'image/png'|'image/jpeg'|'image/webp';sizeBytes:number;sha256:string;widthPx?:number;heightPx?:number;createdAt:string}
+
+export interface CardTemplateElement {id:string;field:'title'|'usernameLabel'|'username'|'passwordLabel'|'password'|'profile'|'uptime'|'note';x:number;y:number;width:number;fontSize:number;color:string;align:'left'|'center'|'right';bold:boolean}
+export interface CardTemplate {id:number;packageId:number;pointOfSaleId?:number;scopeKind:'global'|'point_of_sale';name:string;isDefault:boolean;active:boolean;latestVersionId?:number;versionNumber:number;cardWidthMm:number;cardHeightMm:number;design:CardTemplateElement[];pageLayout:{columns:number;rows:number;marginMm:number;gapMm:number};backgroundAssetId?:number;createdAt:string;updatedAt:string}
