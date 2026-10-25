@@ -1,4 +1,4 @@
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord,CardPackage,CardPackageInput,ServiceSystem} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,VoucherBatch,VoucherBatchResult,VoucherProduct,POSSale,POSSaleResult,UserManagerOverview,UserManagerProfile,UserManagerLimitation,HotSpotProfileSyncResponse,ServiceProfileRecord,CardPackage,CardPackageInput,ServiceSystem,PointOfSale,PointOfSaleInput,PointOfSalePackagesResponse,PointOfSalePackageRuleInput} from './types';
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
  const headers=new Headers(init?.headers);if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
  let response:Response;
@@ -26,6 +26,13 @@ export const api={
  createCardPackage:(payload:CardPackageInput)=>request<CardPackage>('/api/card-packages',{method:'POST',body:JSON.stringify(payload)}),
  updateCardPackage:(id:number,payload:CardPackageInput)=>request<CardPackage>('/api/card-packages/'+id,{method:'PUT',body:JSON.stringify(payload)}),
  archiveCardPackage:(id:number)=>request<CardPackage>('/api/card-packages/'+id+'/archive',{method:'POST'}),
+ pointsOfSale:(includeInactive=true)=>request<{pointsOfSale:PointOfSale[]}>('/api/points-of-sale?includeInactive='+String(includeInactive)),
+ pointOfSale:(id:number)=>request<PointOfSale>('/api/points-of-sale/'+id),
+ createPointOfSale:(payload:PointOfSaleInput)=>request<PointOfSale>('/api/points-of-sale',{method:'POST',body:JSON.stringify(payload)}),
+ updatePointOfSale:(id:number,payload:PointOfSaleInput)=>request<PointOfSale>('/api/points-of-sale/'+id,{method:'PUT',body:JSON.stringify(payload)}),
+ archivePointOfSale:(id:number)=>request<PointOfSale>('/api/points-of-sale/'+id+'/archive',{method:'POST'}),
+ pointOfSalePackages:(id:number,includeInactive=true)=>request<PointOfSalePackagesResponse>('/api/points-of-sale/'+id+'/packages?includeInactive='+String(includeInactive)),
+ replacePointOfSalePackages:(id:number,packageSelectionMode:'all'|'selected',packages:PointOfSalePackageRuleInput[])=>request<PointOfSalePackagesResponse>('/api/points-of-sale/'+id+'/packages',{method:'PUT',body:JSON.stringify({packageSelectionMode,packages})}),
  syncUserManager:(router:{address:string;port:number;username:string;password:string;useTls:boolean})=>request<UserManagerOverview>('/api/router/usermanager/sync',{method:'POST',body:JSON.stringify({router}),signal:AbortSignal.timeout(30000)}),
  userManagerProfiles:(routerId:number)=>request<{profiles:UserManagerProfile[];limitations:UserManagerLimitation[]}>('/api/usermanager/profiles?routerId='+encodeURIComponent(String(routerId))),
  createHotSpotUser:(router:{address:string;port:number;username:string;password:string;useTls:boolean},user:{name:string;password:string;profile:string;server:string;limitUptime:string;comment:string})=>request<{status:string}>('/api/router/hotspot/users/create',{method:'POST',body:JSON.stringify({router,user}),signal:AbortSignal.timeout(30000)}),
