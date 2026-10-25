@@ -137,6 +137,32 @@ export interface POSSaleResult {
   items: POSSaleItem[];
 }
 
+export interface CardPackageSale {
+  id: number;
+  reference: string;
+  pointOfSaleId: number;
+  packageId: number;
+  packageName: string;
+  totalMinor: number;
+  currencyCode: string;
+  paymentMethod: 'cash' | 'transfer' | 'card' | 'other';
+  createdAt: string;
+}
+export interface CardPackageSaleItem {
+  id: number;
+  voucherId: number;
+  batchId: number;
+  username: string;
+  packageId: number;
+  packageName: string;
+  unitPriceMinor: number;
+  currencyCode: string;
+}
+export interface CardPackageSaleResult {
+  sale: CardPackageSale;
+  items: CardPackageSaleItem[];
+}
+
 export interface UserManagerLimitation {
   id: number;
   sourceId: string;
