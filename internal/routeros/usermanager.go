@@ -205,7 +205,9 @@ func safeProperties(row map[string]string, allowed []string) map[string]string {
 	properties := make(map[string]string, len(allowed))
 	for _, key := range allowed {
 		key = strings.TrimSpace(key)
-		if key == "" || key == ".id" {
+		switch strings.ToLower(key) {
+		case "", ".id", "password", "otp-secret", "shared-secret", "secret",
+			"paypal-password", "paypal-signature", "web-private-password":
 			continue
 		}
 		if value, ok := row[key]; ok {
