@@ -113,7 +113,7 @@ func (db *DB) GetVoucherProduct(ctx context.Context, id int64) (VoucherProduct, 
 	var product VoucherProduct
 	var active int
 	err := db.QueryRowContext(ctx, `SELECT p.id,p.name,p.profile_name,p.server_name,p.limit_uptime,p.price_minor,p.active,
-		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.limit_uptime=p.limit_uptime AND v.status='available'),
+		(SELECT count(*) FROM vouchers v WHERE v.profile_name=p.profile_name AND v.server_name=p.server_name AND v.limit_uptime=p.limit_uptime AND v.package_id IS NULL AND v.point_of_sale_id IS NULL AND v.status='available'),
 		p.created_at,p.updated_at FROM voucher_products p WHERE p.id=?`, id).
 		Scan(&product.ID, &product.Name, &product.ProfileName, &product.ServerName, &product.LimitUptime, &product.PriceMinor, &active,
 			&product.StockCount, &product.CreatedAt, &product.UpdatedAt)
@@ -210,21 +210,23 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 		return POSSaleResult{}, ErrInvalidPOSSale
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT id,username FROM vouchers
-		WHERE profile_name=? AND server_name=? AND limit_uptime=? AND status='available' ORDER BY id LIMIT ?`, profileName, serverName, limitUptime, quantity)
+	rows, err := tx.QueryContext(ctx, `SELECT id,username,batch_id FROM vouchers
+		WHERE profile_name=? AND server_name=? AND limit_uptime=? AND package_id IS NULL AND point_of_sale_id IS NULL AND status='available' ORDER BY id LIMIT ?`, profileName, serverName, limitUptime, quantity)
 	if err != nil {
 		return POSSaleResult{}, err
 	}
 	selected := make([]struct {
 		id       int64
 		username string
+		batchID  int64
 	}, 0, quantity)
 	for rows.Next() {
 		var voucher struct {
 			id       int64
 			username string
+			batchID  int64
 		}
-		if err := rows.Scan(&voucher.id, &voucher.username); err != nil {
+		if err := rows.Scan(&voucher.id, &voucher.username, &voucher.batchID); err != nil {
 			_ = rows.Close()
 			return POSSaleResult{}, err
 		}
@@ -249,6 +251,7 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 		return POSSaleResult{}, err
 	}
 	items := make([]POSSaleItem, 0, len(selected))
+	soldByBatch := make(map[int64]int)
 	for _, voucher := range selected {
 		itemResult, err := tx.ExecContext(ctx, `INSERT INTO pos_sale_items
 			(sale_id,voucher_id,product_id,product_name,profile_name,server_name,limit_uptime,unit_price_minor,currency_code)
@@ -272,11 +275,20 @@ func (db *DB) CreatePOSSale(ctx context.Context, reference string, productID int
 		if affected != 1 {
 			return POSSaleResult{}, ErrInsufficientVoucherStock
 		}
+		soldByBatch[voucher.batchID]++
 		items = append(items, POSSaleItem{
 			ID: itemID, VoucherID: voucher.id, Username: voucher.username,
 			ProductID: productID, ProductName: productName, ProfileName: profileName, ServerName: serverName, LimitUptime: limitUptime,
 			UnitPriceMinor: priceMinor, CurrencyCode: currency,
 		})
+	}
+	for batchID, soldCount := range soldByBatch {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO voucher_stock_movements
+			(reference,movement_type,batch_id,package_id,quantity,note)
+			VALUES(?,'sale',?,NULL,?,'Legacy POS sale')`,
+			reference+"-SALE-"+fmt.Sprint(batchID), batchID, soldCount); err != nil {
+			return POSSaleResult{}, fmt.Errorf("record POS stock movement: %w", err)
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO financial_transactions(reference,transaction_type,amount_minor,currency_code)
 		VALUES(?,'sale',?,?)`, reference, total, currency); err != nil {
