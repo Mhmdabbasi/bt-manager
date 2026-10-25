@@ -2,13 +2,14 @@ import {useEffect,useState,type FormEvent} from 'react';
 import {api} from './api';
 import HotSpotManager from './components/HotSpotManager';
 import UserManagerManager from './components/UserManagerManager';
+import CardPackageManager from './components/CardPackageManager';
 import {formatT,t,type Language} from './i18n';
 import {setBootstrapDirection} from './bootstrapStyles';
 import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,UserManagerOverview} from './types';
 
 const defaults:AppSettings={businessName:'bt-manager',currencyCode:'YER',currencySymbol:'ر.ي',setupComplete:false};
 type Flash={kind:'success'|'danger';message:string}|null;
-type Page='dashboard'|'settings'|'hotspot-users'|'hotspot-profiles'|'hotspot-sessions'|'hotspot-servers'|'vouchers'|'pos'|'user-manager';
+type Page='dashboard'|'settings'|'hotspot-users'|'hotspot-profiles'|'hotspot-sessions'|'hotspot-servers'|'vouchers'|'pos'|'user-manager'|'card-packages';
 type HotSpotView='users'|'profiles'|'sessions'|'servers'|'vouchers'|'pos';
 const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
  dashboard:{title:'نظرة عامة',eyebrow:'لوحة التحكم',description:'ملخص حالة التطبيق والشبكة وأهم وحدات العمل.'},
@@ -19,7 +20,8 @@ const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
  'hotspot-servers':{title:'خوادم HotSpot',eyebrow:'إدارة HotSpot',description:'عرض خوادم HotSpot وواجهاتها وملفاتها التعريفية.'},
  vouchers:{title:'دفعات الكروت والطباعة',eyebrow:'قسائم HotSpot',description:'إنشاء دفعات الدخول وضبط الرموز وتصميم الكروت وطباعتها.'},
  pos:{title:'نقطة البيع',eyebrow:'المبيعات',description:'تعريف الباقات وبيع القسائم المتوفرة ومراجعة الإيصالات.'},
- 'user-manager':{title:'User Manager',eyebrow:'إدارة RADIUS',description:'استيراد Profiles وLimitations وعرض القيود المرتبطة بها حسب إصدار RouterOS.'}
+ 'user-manager':{title:'User Manager',eyebrow:'إدارة RADIUS',description:'استيراد Profiles وLimitations وعرض القيود المرتبطة بها حسب إصدار RouterOS.'},
+ 'card-packages':{title:'دليل باقات الكروت',eyebrow:'كتالوج الباقات',description:'ربط الباقات التجارية بملفات HotSpot أو User Manager، وتحديد أسعار المستخدم والموزع.'}
 };
 const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:boolean}[]}[]=[
  {label:'عام',items:[{page:'dashboard',label:'نظرة عامة',icon:'bi-grid-1x2-fill'},{page:'settings',label:'الإعدادات والاتصال',icon:'bi-router'}]},
@@ -32,6 +34,7 @@ const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:bo
  ]},
  {label:'البيع وإدارة المستخدمين',items:[
   {page:'pos',label:'نقطة البيع',icon:'bi-shop'},
+  {page:'card-packages',label:'دليل باقات الكروت',icon:'bi-collection'},
   {page:'user-manager',label:'User Manager',icon:'bi-person-gear'}
  ]}
 ];
@@ -48,6 +51,7 @@ export default function App(){
  const [info,setInfo]=useState<RouterInfo|null>(null);
  const [hotspot,setHotspot]=useState<HotSpotOverview|null>(null);
  const [userManagerOverview,setUserManagerOverview]=useState<UserManagerOverview|null>(null);
+ const [routerCatalogId,setRouterCatalogId]=useState<number|null>(null);
  const [page,setPage]=useState<Page>('dashboard');
  const [language,setLanguage]=useState<Language>(()=>{try{return localStorage.getItem('bt-manager-language')==='en'?'en':'ar'}catch{return 'ar'}});
  const [theme,setTheme]=useState<'light'|'dark'>(()=>{try{return localStorage.getItem('bt-manager-theme')==='dark'?'dark':'light'}catch{return 'light'}});
@@ -127,7 +131,7 @@ export default function App(){
   finally{setSaving(false)}
  }
  async function testRouter(event:FormEvent){
-  event.preventDefault();setTesting(true);setFlash(null);setInfo(null);
+  event.preventDefault();setTesting(true);setFlash(null);setInfo(null);setRouterCatalogId(null);
   try{
    const result=await api.testRouter(router);setInfo(result.router);
    setFlash({kind:'success',message:formatT(language,'تم الاتصال بالراوتر {identity} بنجاح.',{identity:result.router.identity||router.address})});
@@ -142,6 +146,7 @@ export default function App(){
    try{
     const profileSync=await api.syncHotSpotProfiles(router);
     profileCount=profileSync.sync.profileCount;
+    setRouterCatalogId(profileSync.sync.routerId);
    }catch(error){
     setFlash({kind:'danger',message:formatT(language,'تم تحميل بيانات HotSpot، لكن تعذرت مزامنة ملفات التعريف إلى الكتالوج المحلي: {error}',{error:(error as Error).message})});
     return;
@@ -159,6 +164,7 @@ export default function App(){
   try{
    const result=await api.syncUserManager(router);
    setUserManagerOverview(result);
+   setRouterCatalogId(result.sync.routerId);
    if(showMessage)setFlash({kind:'success',message:formatT(language,'اكتملت مزامنة User Manager: {profiles} ملفًا و{limitations} قيدًا و{relations} علاقة.',{profiles:result.sync.profileCount,limitations:result.sync.limitationCount,relations:result.sync.relationshipCount})});
   }catch(error){setFlash({kind:'danger',message:t(language,(error as Error).message)})}
   finally{setLoadingUserManager(false)}
@@ -173,6 +179,7 @@ export default function App(){
    if(info){void loadUserManager(false)}
    else{setFlash({kind:'danger',message:t(language,'اختبر اتصال الراوتر من «الإعدادات والاتصال» قبل استيراد User Manager.')})}
   }
+  if(nextPage==='card-packages'&&!routerCatalogId&&info&&!loadingHotspot){void loadHotspot(false)}
  }
  const setting=(key:keyof AppSettings,value:string|boolean)=>setSettings(current=>({...current,[key]:value}));
  const route=(key:keyof typeof router,value:string|number|boolean)=>setRouter(current=>({...current,[key]:value}));
@@ -232,6 +239,7 @@ export default function App(){
    {view&&<>{hotspot?<HotSpotManager language={language} view={view} router={router} overview={hotspot} businessName={settings.businessName} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onRefresh={()=>loadHotspot(false)} onMessage={(kind,message)=>setFlash({kind,message})}/>:<section className="panel empty-router-state"><div className="panel-icon cyan"><i className="bi bi-router"/></div><h2>{t(language,"بيانات HotSpot غير محمّلة")}</h2><p>{t(language,"اختبر اتصال الراوتر من الإعدادات أولًا، ثم اقرأ بيانات HotSpot لفتح هذا القسم.")}</p><button type="button" className="btn btn-primary" onClick={()=>navigate('settings')}>{t(language,"فتح الإعدادات والاتصال")}</button></section>}</>}
 
    {page==='user-manager'&&<UserManagerManager language={language} overview={userManagerOverview} loading={loadingUserManager} onRefresh={()=>void loadUserManager()}/>}
+   {page==='card-packages'&&<CardPackageManager language={language} routerId={routerCatalogId} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onMessage={(kind,message)=>setFlash({kind,message})} onRefreshHotSpot={()=>void loadHotspot(false)} onRefreshUserManager={()=>void loadUserManager(false)}/>}
 
    <footer className="page-footer"><div><span className="footer-mark">bt</span><span>bt-manager <small>· إدارة محلية لشبكات MikroTik</small></span></div><span><i className="bi bi-shield-check"/> {language==='ar'?'يعمل على جهازك':'Runs locally on your device'}</span></footer>
   </main>
