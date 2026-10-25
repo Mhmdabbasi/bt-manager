@@ -179,7 +179,6 @@ export default function App(){
    if(info){void loadUserManager(false)}
    else{setFlash({kind:'danger',message:t(language,'اختبر اتصال الراوتر من «الإعدادات والاتصال» قبل استيراد User Manager.')})}
   }
-  if(nextPage==='card-packages'&&!routerCatalogId&&info&&!loadingHotspot){void loadHotspot(false)}
  }
  const setting=(key:keyof AppSettings,value:string|boolean)=>setSettings(current=>({...current,[key]:value}));
  const route=(key:keyof typeof router,value:string|number|boolean)=>setRouter(current=>({...current,[key]:value}));
