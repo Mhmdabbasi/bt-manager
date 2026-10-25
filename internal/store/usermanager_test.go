@@ -111,7 +111,16 @@ func TestSyncUserManagerSnapshotPersistsProfilesAndMultipleLimitations(t *testin
 			}
 		} else if profile.Name != "Monthly" {
 			t.Fatalf("unexpected soft-missing profile: %+v", profile)
+		} else if len(profile.Limitations) != 1 || profile.Limitations[0].Limitation.Present {
+			t.Fatalf("last-known relationship should remain visible while the profile/limitation is absent: %+v", profile)
 		}
+	}
+	limitations, err := db.ListUserManagerLimitations(ctx, second.RouterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(limitations) != 2 || limitations[0].Name != "Daily" || !limitations[0].Present || limitations[1].Name != "MonthlyCap" || limitations[1].Present {
+		t.Fatalf("missing limitation should be soft-marked, not deleted: %+v", limitations)
 	}
 	if presentCount != 1 {
 		t.Fatalf("present profile count=%d, want 1", presentCount)
