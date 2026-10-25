@@ -139,7 +139,7 @@ export default function UserManagerManager({language,overview,loading,onRefresh}
        ? <div className="alert alert-warning mb-0">{tx('نجحت المزامنة لكن لم يعثر User Manager على ملفات تعريفية.')}</div>
        : <div className="table-responsive">
          <table className="table align-middle">
-          <thead><tr><th>{tx('اسم الملف')}</th><th>{tx('الصلاحية')}</th><th>{tx('السعر الفني')}</th><th>{tx('عدد القيود')}</th><th>{tx('التفاصيل')}</th></tr></thead>
+          <thead><tr><th>{tx('اسم الملف')}</th><th>{tx('الصلاحية')}</th><th>{tx('سعر الملف في User Manager')}</th><th>{tx('عدد القيود')}</th><th>{tx('التفاصيل')}</th></tr></thead>
           <tbody>{overview.profiles.map(profile=><tr key={profile.id}>
            <td><div className="fw-bold">{profile.name}</div><div className="small text-secondary">{profile.sourceId}</div>{!profile.present&&<span className="badge text-bg-warning mt-1">{tx('غير موجود حاليًا')}</span>}</td>
            <td>{profile.properties.validity||'—'}</td>
