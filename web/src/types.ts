@@ -167,3 +167,29 @@ export interface UserManagerOverview {
   profiles: UserManagerProfile[];
   limitations: UserManagerLimitation[];
 }
+
+export interface ServiceProfileSyncSummary {
+  routerId: number;
+  routerKey: string;
+  routerIdentity: string;
+  routerOsVersion: string;
+  model: string;
+  sourceSystem: 'hotspot';
+  profileCount: number;
+  syncedAt: string;
+}
+export interface ServiceProfileRecord {
+  id: number;
+  routerId: number;
+  sourceSystem: 'hotspot' | 'usermanager';
+  sourceId: string;
+  name: string;
+  properties: Record<string,string>;
+  present: boolean;
+  lastSeenAt: string;
+}
+export interface HotSpotProfileSyncResponse {
+  sync: ServiceProfileSyncSummary;
+  router: RouterInfo;
+  profiles: ServiceProfileRecord[];
+}
