@@ -155,6 +155,25 @@ func (db *DB) UpdateCardPackage(ctx context.Context, id int64, input CardPackage
 	return db.GetCardPackage(ctx, id)
 }
 
+func (db *DB) ArchiveCardPackage(ctx context.Context, id int64) (CardPackage, error) {
+	if id < 1 {
+		return CardPackage{}, ErrCardPackageNotFound
+	}
+	result, err := db.ExecContext(ctx, `UPDATE card_packages SET active=0,
+		updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`, id)
+	if err != nil {
+		return CardPackage{}, fmt.Errorf("archive card package: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return CardPackage{}, err
+	}
+	if affected == 0 {
+		return CardPackage{}, ErrCardPackageNotFound
+	}
+	return db.GetCardPackage(ctx, id)
+}
+
 func (db *DB) GetCardPackage(ctx context.Context, id int64) (CardPackage, error) {
 	if id < 1 {
 		return CardPackage{}, ErrCardPackageNotFound
