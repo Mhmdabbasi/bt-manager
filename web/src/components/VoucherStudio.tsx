@@ -197,7 +197,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    setBackground(result.url);
    setBackgroundName(result.asset.originalName);
    setBackgroundAssetId(result.asset.id);
-   onMessage('success',tx('تم حفظ الخلفية على الجهاز ويمكن استرجاعها بعد إعادة التشغيل.'));
+   onMessage('success',tx('تم حفظ ملف الخلفية؛ احفظ القالب للاحتفاظ باختياره فيه.'));
   }catch(error){
    onMessage('danger',(error as Error).message||tx('تعذر حفظ ملف الخلفية.'));
   }finally{
