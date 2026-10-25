@@ -1,6 +1,6 @@
 # Phase 0 — Domain foundation and API contracts
 
-Status: additive SQLite schema foundation is implemented; application handlers/UI for these contracts are future phases.
+Status: additive SQLite schema foundation, read-only RouterOS profile imports, and the initial card-package catalog API/UI are implemented; remaining contracts in this document are planned.
 Branch: `feature/phase-1-foundation`.
 
 ## Goals
@@ -102,11 +102,21 @@ The shared service-profile API currently supports reading/synchronizing HotSpot 
 
 ### Card packages and points of sale
 
-- `GET/POST /api/card-packages`, `GET/PUT /api/card-packages/{id}`, and `POST /api/card-packages/{id}/archive`.
+**Implemented — card package catalog**
+
+- `GET /api/card-packages?includeInactive={boolean}&system={hotspot|usermanager}` lists packages, optionally including inactive packages and filtering by source system.
+- `POST /api/card-packages` creates a package. `GET /api/card-packages/{id}` reads one package and `PUT /api/card-packages/{id}` updates it.
+- `POST /api/card-packages/{id}/archive` deactivates a package without deleting it.
+- The local **Card Package Catalog** UI links a commercial package to an imported HotSpot or User Manager service profile and records description, customer price, dealer price, default username prefix, active state, and display order.
+- The store verifies that a selected profile belongs to the chosen service system. A new package must use a currently present profile; an existing package whose profile disappears is retained and marked as missing. It cannot be activated again until that profile is present.
+- Package names are checked without case sensitivity. Prices use integer minor currency units; dealer price cannot be negative or exceed customer price. Package records are archived rather than deleted.
+
+**Planned — points of sale and package distribution**
+
 - `GET/POST /api/points-of-sale`, `GET/PUT /api/points-of-sale/{id}`, and `POST /api/points-of-sale/{id}/archive`.
 - `GET/PUT /api/points-of-sale/{id}/packages` reads or updates package selection mode and package rules, including prefix/template overrides.
 
-Use stable IDs in requests. Validate system/profile compatibility, non-negative dealer price not above the end-user price, active-profile state for new generation, template scope, and package availability. Archive rather than delete records that have been referenced by a batch or movement.
+Use stable IDs in requests. Continue validating template scope and package availability when POS, template, batch-generation, and inventory handlers are added. Archive rather than delete records that have been referenced by a batch or movement.
 
 ### Assets and design studio
 
