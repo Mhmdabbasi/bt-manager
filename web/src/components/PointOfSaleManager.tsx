@@ -39,7 +39,7 @@ export default function PointOfSaleManager({language,currencyCode,currencySymbol
     setPoints(result.pointsOfSale);
     const next=result.pointsOfSale.find(item=>item.id===selectedID)??result.pointsOfSale.find(item=>item.active)??result.pointsOfSale[0]??null;
     setSelectedID(next?.id??null);
-    if(!editingID&&next)setForm({code:next.code,name:next.name,phone:next.phone,address:next.address,notes:next.notes,active:next.active});
+    if(!editingID&&next){setEditingID(next.id);setForm({code:next.code,name:next.name,phone:next.phone,address:next.address,notes:next.notes,active:next.active});}
    }catch(error){if(alive)onMessage('danger',tx((error as Error).message))}
    finally{if(alive)setLoading(false)}
   }
@@ -68,7 +68,7 @@ export default function PointOfSaleManager({language,currencyCode,currencySymbol
  }
  function selectPoint(point:PointOfSale){
   setSelectedID(point.id);
-  setEditingID(null);
+  setEditingID(point.id);
   setForm({code:point.code,name:point.name,phone:point.phone,address:point.address,notes:point.notes,active:point.active});
  }
  function startEdit(point:PointOfSale){
@@ -117,10 +117,12 @@ export default function PointOfSaleManager({language,currencyCode,currencySymbol
   finally{setSaving(false)}
  }
  function changeSelectionMode(next:PackageSelectionMode){
+  const previousDefault=selectionMode==='all';
+  const nextDefault=next==='all';
   setSelectionMode(next);
   setRules(current=>current.map(rule=>{
-   const isEnabled=next==='selected'?(rule.hasRule?rule.isEnabled:false):(rule.hasRule&&!rule.isEnabled?false:true);
-   return {...rule,isEnabled};
+   const hasExplicitChoice=rule.hasRule||rule.isEnabled!==previousDefault||Boolean(rule.prefixOverride?.trim());
+   return {...rule,isEnabled:hasExplicitChoice?rule.isEnabled:nextDefault};
   }));
  }
  async function savePackageRules(event:FormEvent){
