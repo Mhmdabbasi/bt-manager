@@ -138,7 +138,14 @@ export default function App(){
   setLoadingHotspot(true);if(showMessage)setFlash(null);
   try{
    const result=await api.hotspotOverview(router);setHotspot(result);
-   if(showMessage)setFlash({kind:'success',message:formatT(language,'تمت قراءة بيانات HotSpot: {users} مستخدم و{sessions} جلسة نشطة.',{users:result.counts.users,sessions:result.counts.activeSessions})});
+   let profileSync;
+   try{
+    profileSync=await api.syncHotSpotProfiles(router);
+   }catch(error){
+    setFlash({kind:'danger',message:formatT(language,'تم تحميل بيانات HotSpot، لكن تعذرت مزامنة ملفات التعريف إلى الكتالوج المحلي: {error}',{error:(error as Error).message})});
+    return;
+   }
+   if(showMessage)setFlash({kind:'success',message:formatT(language,'تمت قراءة HotSpot ومزامنة {profiles} ملفًا تعريفيًا؛ {users} مستخدم و{sessions} جلسة نشطة.',{profiles:profileSync.sync.profileCount,users:result.counts.users,sessions:result.counts.activeSessions})});
   }catch(error){setFlash({kind:'danger',message:t(language,(error as Error).message)})}
   finally{setLoadingHotspot(false)}
  }
