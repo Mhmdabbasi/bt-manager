@@ -331,3 +331,32 @@ func TestSavedUserManagerProfilesRequiresRouterID(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+
+func TestHotSpotProfileSyncRejectsInvalidRouterAndDoesNotLeakSecrets(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"","port":8728,"username":"admin","password":"hotspot-secret","useTls":false}}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/hotspot/profiles/sync", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "hotspot-secret") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestServiceProfilesRequiresValidSystemAndRouterID(t *testing.T) {
+	handler := testHandler(t)
+	cases := []struct{ target string; want int }{
+		{target: "/api/service-profiles?routerId=invalid&system=hotspot", want: http.StatusBadRequest},
+		{target: "/api/service-profiles?routerId=1&system=invalid", want: http.StatusBadRequest},
+		{target: "/api/service-profiles?routerId=999&system=hotspot", want: http.StatusNotFound},
+	}
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.target, nil))
+		if rec.Code != tc.want {
+			t.Fatalf("%s: status %d, want %d: %s", tc.target, rec.Code, tc.want, rec.Body.String())
+		}
+	}
+}
