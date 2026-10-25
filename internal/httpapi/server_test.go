@@ -360,3 +360,59 @@ func TestServiceProfilesRequiresValidSystemAndRouterID(t *testing.T) {
 		}
 	}
 }
+
+
+func TestCardPackageListAndFilters(t *testing.T) {
+	handler := testHandler(t)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/card-packages", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Packages []map[string]any `json:"packages"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Packages == nil || len(payload.Packages) != 0 {
+		t.Fatalf("expected empty package list, got %#v", payload.Packages)
+	}
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/card-packages?system=radius", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid filter status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCardPackageCreateRequiresImportedProfile(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"name":"Starter","serviceSystem":"hotspot","serviceProfileId":999,"description":"","userPriceMinor":10000,"dealerPriceMinor":0,"defaultPrefix":"S-","active":true,"sortOrder":0}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/card-packages", body))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(strings.ToLower(rec.Body.String()), "password") {
+		t.Fatalf("unexpected sensitive data in response: %s", rec.Body.String())
+	}
+}
+
+func TestCardPackageMutationRejectsUntrustedOrigin(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := jsonRequest(http.MethodPost, "/api/card-packages", `{"name":"Starter","serviceSystem":"hotspot","serviceProfileId":1,"userPriceMinor":10000,"dealerPriceMinor":0}`)
+	req.Header.Set("Origin", "https://untrusted.example")
+	testHandler(t).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCardPackageUpdateRejectsInvalidID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"name":"Starter","serviceSystem":"hotspot","serviceProfileId":1,"userPriceMinor":10000,"dealerPriceMinor":0,"active":true}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPut, "/api/card-packages/not-an-id", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
