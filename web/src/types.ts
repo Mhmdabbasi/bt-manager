@@ -165,4 +165,5 @@ export interface UserManagerOverview {
   router: RouterInfo;
   majorVersion: number;
   profiles: UserManagerProfile[];
+  limitations: UserManagerLimitation[];
 }
