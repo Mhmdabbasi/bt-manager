@@ -226,3 +226,50 @@ export interface CardPackageInput {
   active: boolean;
   sortOrder: number;
 }
+
+export type PackageSelectionMode = 'all' | 'selected';
+export interface PointOfSale {
+  id: number;
+  code: string;
+  name: string;
+  phone: string;
+  address: string;
+  notes: string;
+  packageSelectionMode: PackageSelectionMode;
+  active: boolean;
+  packageRuleCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface PointOfSaleInput {
+  code: string;
+  name: string;
+  phone: string;
+  address: string;
+  notes: string;
+  packageSelectionMode: PackageSelectionMode;
+  active: boolean;
+}
+export interface PointOfSalePackageRule {
+  packageId: number;
+  packageName: string;
+  serviceSystem: ServiceSystem;
+  serviceProfileName: string;
+  userPriceMinor: number;
+  dealerPriceMinor: number;
+  packageActive: boolean;
+  isEnabled: boolean;
+  hasRule: boolean;
+  prefixOverride: string | null;
+  templateIdOverride: number | null;
+}
+export interface PointOfSalePackageRuleInput {
+  packageId: number;
+  isEnabled: boolean;
+  prefixOverride: string | null;
+  templateIdOverride: number | null;
+}
+export interface PointOfSalePackagesResponse {
+  pointOfSale: PointOfSale;
+  packages: PointOfSalePackageRule[];
+}
