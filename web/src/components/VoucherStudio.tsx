@@ -22,6 +22,8 @@ const layouts:Record<LayoutKey,{label:string;columns:number;rows:number;capacity
  '3x20':{label:'60 بطاقة — 3 أعمدة × 20 صفًا',columns:3,rows:20,capacity:60},
  '3x15':{label:'45 بطاقة — 3 أعمدة × 15 صفًا',columns:3,rows:15,capacity:45},
 };
+const defaultDesign:CardTemplateElement[]=[{id:'title',field:'title',x:4,y:5,width:92,fontSize:11,color:'#147f9f',align:'right',bold:true},{id:'usernameLabel',field:'usernameLabel',x:4,y:29,width:92,fontSize:7,color:'#7e8fa1',align:'right',bold:false},{id:'username',field:'username',x:4,y:39,width:92,fontSize:17,color:'#172f44',align:'center',bold:true},{id:'passwordLabel',field:'passwordLabel',x:4,y:58,width:92,fontSize:7,color:'#7e8fa1',align:'right',bold:false},{id:'password',field:'password',x:4,y:66,width:92,fontSize:11,color:'#172f44',align:'center',bold:true},{id:'profile',field:'profile',x:4,y:84,width:45,fontSize:7,color:'#718298',align:'right',bold:false},{id:'uptime',field:'uptime',x:50,y:84,width:46,fontSize:7,color:'#718298',align:'left',bold:false},{id:'note',field:'note',x:4,y:92,width:92,fontSize:7,color:'#687b90',align:'center',bold:false}];
+const elementLabels:Record<CardTemplateElement['field'],string>={title:'اسم الشبكة',usernameLabel:'عنوان رمز الدخول',username:'اسم المستخدم',passwordLabel:'عنوان كلمة المرور',password:'كلمة المرور',profile:'الملف التعريفي',uptime:'الوقت',note:'العبارة الإضافية'};
 function chunk<T>(items:T[],size:number):T[][]{
  const result:T[][]=[];
  for(let i=0;i<items.length;i+=size)result.push(items.slice(i,i+size));
@@ -71,7 +73,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
  const [background,setBackground]=useState('');
  const [backgroundName,setBackgroundName]=useState('');
  const [backgroundAssetId,setBackgroundAssetId]=useState(0);
- const [designElements,setDesignElements]=useState<CardTemplateElement[]>([]);
+ const [designElements,setDesignElements]=useState<CardTemplateElement[]>(defaultDesign);
  const [selectedElementID,setSelectedElementID]=useState('username');
  const [cardWidthMM,setCardWidthMM]=useState(50);
  const [cardHeightMM,setCardHeightMM]=useState(19.1);
