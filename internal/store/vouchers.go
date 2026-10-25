@@ -102,9 +102,13 @@ func (db *DB) BeginVoucherBatch(ctx context.Context, batch NewVoucherBatch) (Vou
 	if batch.ServiceSystemSnapshot != "hotspot" && batch.ServiceSystemSnapshot != "usermanager" {
 		return VoucherBatch{}, errors.New("invalid voucher batch service system")
 	}
+	if batch.PointOfSaleID > 0 && batch.PackageID < 1 {
+		return VoucherBatch{}, errors.New("point-of-sale batches require a card package")
+	}
 	if batch.PackageID > 0 && (batch.RouterID < 1 || batch.PackageNameSnapshot == "" ||
 		batch.UserPriceMinorSnapshot == nil || batch.DealerPriceMinorSnapshot == nil ||
-		batch.PointOfSaleID > 0 && batch.ServiceSystemSnapshot == "") {
+		*batch.UserPriceMinorSnapshot < 1 || *batch.DealerPriceMinorSnapshot < 0 ||
+		*batch.DealerPriceMinorSnapshot > *batch.UserPriceMinorSnapshot) {
 		return VoucherBatch{}, errors.New("incomplete package voucher batch snapshot")
 	}
 	batch.GenerationConfigJSON = defaultJSON(batch.GenerationConfigJSON, "{}")
@@ -165,14 +169,27 @@ func (db *DB) AddVoucher(ctx context.Context, batchID int64, username string, pa
 
 func (db *DB) FinishVoucherBatch(ctx context.Context, id int64, reportedFailed int, message string) (VoucherBatch, error) {
 	_ = reportedFailed // The database inventory is authoritative when calculating failures.
-	var created, requested int
-	if err := db.QueryRowContext(ctx, `SELECT requested_count FROM voucher_batches WHERE id=?`, id).Scan(&requested); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return VoucherBatch{}, ErrVoucherBatchNotFound
-		}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
 		return VoucherBatch{}, err
 	}
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM vouchers WHERE batch_id=?`, id).Scan(&created); err != nil {
+	defer tx.Rollback()
+
+	var created, requested int
+	var packageID, pointOfSaleID sql.NullInt64
+	var reference, currentStatus string
+	err = tx.QueryRowContext(ctx, `SELECT requested_count,package_id,point_of_sale_id,reference,status
+		FROM voucher_batches WHERE id=?`, id).Scan(&requested, &packageID, &pointOfSaleID, &reference, &currentStatus)
+	if errors.Is(err, sql.ErrNoRows) {
+		return VoucherBatch{}, ErrVoucherBatchNotFound
+	}
+	if err != nil {
+		return VoucherBatch{}, err
+	}
+	if currentStatus != "running" {
+		return db.GetVoucherBatch(ctx, id)
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM vouchers WHERE batch_id=?`, id).Scan(&created); err != nil {
 		return VoucherBatch{}, err
 	}
 	failed := requested - created
@@ -185,22 +202,114 @@ func (db *DB) FinishVoucherBatch(ctx context.Context, id int64, reportedFailed i
 	} else if created < requested {
 		status = "partial"
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE voucher_batches SET created_count=?,failed_count=?,status=?,error_message=? WHERE id=?`,
+	if _, err := tx.ExecContext(ctx, `UPDATE voucher_batches SET created_count=?,failed_count=?,status=?,error_message=? WHERE id=?`,
 		created, failed, status, strings.TrimSpace(message), id); err != nil {
+		return VoucherBatch{}, err
+	}
+
+	// Package-backed voucher inventory is recorded in the append-only stock ledger.
+	// Legacy batches have NULL package_id and retain their existing behavior.
+	if packageID.Valid && created > 0 {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO voucher_stock_movements
+			(reference,movement_type,batch_id,package_id,quantity,note)
+			VALUES(?,'issue',?,?,?,'Initial voucher generation')`,
+			reference+"-ISSUE", id, packageID.Int64, created); err != nil {
+			return VoucherBatch{}, fmt.Errorf("record initial voucher stock: %w", err)
+		}
+		if pointOfSaleID.Valid {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO voucher_stock_movements
+				(reference,movement_type,batch_id,package_id,to_point_of_sale_id,quantity,note)
+				VALUES(?,'allocate',?,?,?,?, 'Initial allocation to point of sale')`,
+				reference+"-ALLOC-"+fmt.Sprint(pointOfSaleID.Int64), id, packageID.Int64, pointOfSaleID.Int64, created); err != nil {
+				return VoucherBatch{}, fmt.Errorf("record initial point-of-sale allocation: %w", err)
+			}
+		}
+	}
+	if err := tx.Commit(); err != nil {
 		return VoucherBatch{}, err
 	}
 	return db.GetVoucherBatch(ctx, id)
 }
 
-func (db *DB) GetVoucherBatch(ctx context.Context, id int64) (VoucherBatch, error) {
+const voucherBatchSelect = `SELECT id,reference,prefix,profile_name,server_name,limit_uptime,
+	username_length,username_mode,password_mode,password_length,password_charset,requested_count,
+	created_count,failed_count,status,error_message,router_id,package_id,point_of_sale_id,template_version_id,
+	service_system_snapshot,package_name_snapshot,user_price_minor_snapshot,dealer_price_minor_snapshot,
+	generation_config_json,service_profile_snapshot_json,limitation_snapshot_json,created_at
+	FROM voucher_batches`
+
+type voucherBatchRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanVoucherBatch(row voucherBatchRowScanner) (VoucherBatch, error) {
 	var batch VoucherBatch
-	err := db.QueryRowContext(ctx, `SELECT id,reference,prefix,profile_name,server_name,limit_uptime,
-		username_length,username_mode,password_mode,password_length,password_charset,requested_count,
-		created_count,failed_count,status,error_message,created_at FROM voucher_batches WHERE id=?`, id).
-		Scan(&batch.ID, &batch.Reference, &batch.Prefix, &batch.ProfileName, &batch.ServerName,
-			&batch.LimitUptime, &batch.UsernameLength, &batch.UsernameMode, &batch.PasswordMode,
-			&batch.PasswordLength, &batch.PasswordCharset, &batch.RequestedCount, &batch.CreatedCount,
-			&batch.FailedCount, &batch.Status, &batch.ErrorMessage, &batch.CreatedAt)
+	var routerID, packageID, pointOfSaleID, templateVersionID sql.NullInt64
+	var userPrice, dealerPrice sql.NullInt64
+	var generationJSON, profileJSON, limitationJSON string
+	err := row.Scan(
+		&batch.ID, &batch.Reference, &batch.Prefix, &batch.ProfileName, &batch.ServerName, &batch.LimitUptime,
+		&batch.UsernameLength, &batch.UsernameMode, &batch.PasswordMode, &batch.PasswordLength, &batch.PasswordCharset,
+		&batch.RequestedCount, &batch.CreatedCount, &batch.FailedCount, &batch.Status, &batch.ErrorMessage,
+		&routerID, &packageID, &pointOfSaleID, &templateVersionID, &batch.ServiceSystemSnapshot, &batch.PackageNameSnapshot,
+		&userPrice, &dealerPrice, &generationJSON, &profileJSON, &limitationJSON, &batch.CreatedAt,
+	)
+	if err != nil {
+		return VoucherBatch{}, err
+	}
+	batch.RouterID = sqlInt64Pointer(routerID)
+	batch.PackageID = sqlInt64Pointer(packageID)
+	batch.PointOfSaleID = sqlInt64Pointer(pointOfSaleID)
+	batch.TemplateVersionID = sqlInt64Pointer(templateVersionID)
+	batch.UserPriceMinorSnapshot = sqlInt64Pointer(userPrice)
+	batch.DealerPriceMinorSnapshot = sqlInt64Pointer(dealerPrice)
+	batch.GenerationConfig = make(map[string]any)
+	if err := json.Unmarshal([]byte(defaultJSON(generationJSON, "{}")), &batch.GenerationConfig); err != nil {
+		return VoucherBatch{}, fmt.Errorf("decode voucher batch generation snapshot: %w", err)
+	}
+	batch.ServiceProfileSnapshot = make(map[string]string)
+	if err := json.Unmarshal([]byte(defaultJSON(profileJSON, "{}")), &batch.ServiceProfileSnapshot); err != nil {
+		return VoucherBatch{}, fmt.Errorf("decode voucher batch profile snapshot: %w", err)
+	}
+	batch.LimitationSnapshot = make([]map[string]any, 0)
+	if err := json.Unmarshal([]byte(defaultJSON(limitationJSON, "[]")), &batch.LimitationSnapshot); err != nil {
+		return VoucherBatch{}, fmt.Errorf("decode voucher batch limitation snapshot: %w", err)
+	}
+	return batch, nil
+}
+
+func sqlInt64Pointer(value sql.NullInt64) *int64 {
+	if !value.Valid {
+		return nil
+	}
+	result := value.Int64
+	return &result
+}
+
+func nullableID(value int64) any {
+	if value < 1 {
+		return nil
+	}
+	return value
+}
+
+func nullableSQLInt64(value sql.NullInt64) any {
+	if !value.Valid {
+		return nil
+	}
+	return value.Int64
+}
+
+func defaultJSON(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func (db *DB) GetVoucherBatch(ctx context.Context, id int64) (VoucherBatch, error) {
+	batch, err := scanVoucherBatch(db.QueryRowContext(ctx, voucherBatchSelect+" WHERE id=?", id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return VoucherBatch{}, ErrVoucherBatchNotFound
 	}
@@ -211,20 +320,15 @@ func (db *DB) ListVoucherBatches(ctx context.Context, limit int) ([]VoucherBatch
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id,reference,prefix,profile_name,server_name,limit_uptime,
-		username_length,username_mode,password_mode,password_length,password_charset,requested_count,
-		created_count,failed_count,status,error_message,created_at FROM voucher_batches ORDER BY id DESC LIMIT ?`, limit)
+	rows, err := db.QueryContext(ctx, voucherBatchSelect+" ORDER BY id DESC LIMIT ?", limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	batches := make([]VoucherBatch, 0)
 	for rows.Next() {
-		var batch VoucherBatch
-		if err := rows.Scan(&batch.ID, &batch.Reference, &batch.Prefix, &batch.ProfileName, &batch.ServerName,
-			&batch.LimitUptime, &batch.UsernameLength, &batch.UsernameMode, &batch.PasswordMode,
-			&batch.PasswordLength, &batch.PasswordCharset, &batch.RequestedCount, &batch.CreatedCount,
-			&batch.FailedCount, &batch.Status, &batch.ErrorMessage, &batch.CreatedAt); err != nil {
+		batch, err := scanVoucherBatch(rows)
+		if err != nil {
 			return nil, err
 		}
 		batches = append(batches, batch)
