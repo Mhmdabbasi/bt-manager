@@ -23,7 +23,7 @@ export default function CardTemplateLibrary({language,onMessage}:Props){
   }).catch(error=>{if(active)onMessage('danger',(error as Error).message||'تعذر تحميل قوالب الكروت.')})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
- },[reload,onMessage]);
+ },[reload]);
  const filtered=useMemo(()=>{
   const q=query.trim().toLocaleLowerCase();
   return templates.filter(item=>{
