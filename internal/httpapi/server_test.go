@@ -310,3 +310,24 @@ func TestPOSProductRequiresUniqueProfileServerAndTimeLimit(t *testing.T) {
 		t.Fatalf("different time-limit product status %d: %s", third.Code, third.Body.String())
 	}
 }
+
+
+func TestUserManagerSyncRejectsInvalidRouterAndDoesNotLeakSecrets(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := `{"router":{"address":"","port":8728,"username":"admin","password":"not-for-response","useTls":false}}`
+	testHandler(t).ServeHTTP(rec, jsonRequest(http.MethodPost, "/api/router/usermanager/sync", body))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "not-for-response") {
+		t.Fatal("router password leaked in error response")
+	}
+}
+
+func TestSavedUserManagerProfilesRequiresRouterID(t *testing.T) {
+	rec := httptest.NewRecorder()
+	testHandler(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/usermanager/profiles?routerId=invalid", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
