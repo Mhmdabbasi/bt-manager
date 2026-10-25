@@ -198,11 +198,12 @@ func (db *DB) SyncUserManagerSnapshot(ctx context.Context, input UserManagerSync
 		limitationNames[limitation.Name] = id
 	}
 
-	// Refresh relationships only after all three RouterOS reads succeeded.
-	_, err = tx.ExecContext(ctx, `DELETE FROM um_profile_limitations
-		WHERE profile_id IN (SELECT id FROM service_profiles WHERE router_id=? AND source_system='usermanager')`, routerID)
-	if err != nil {
-		return UserManagerSyncResult{}, err
+	// Refresh relationships for profiles present in this snapshot only. If a profile vanished
+	// from RouterOS, retain its last known relationships while marking it absent for review.
+	for _, profileID := range profileIDs {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM um_profile_limitations WHERE profile_id=?`, profileID); err != nil {
+			return UserManagerSyncResult{}, err
+		}
 	}
 
 	relationshipCount := 0
