@@ -30,6 +30,8 @@ type CardPackage struct {
 	ServiceProfilePresent bool          `json:"serviceProfilePresent"`
 	RouterID             int64          `json:"routerId"`
 	RouterAddress        string         `json:"routerAddress"`
+	RouterPort           int            `json:"routerPort"`
+	RouterUseTLS         bool           `json:"routerUseTls"`
 	RouterIdentity       string         `json:"routerIdentity"`
 	Description          string         `json:"description"`
 	UserPriceMinor       int64          `json:"userPriceMinor"`
@@ -60,7 +62,7 @@ type cardPackageQueryer interface {
 
 const cardPackageSelect = `SELECT
 	cp.id,cp.name,cp.service_system,cp.service_profile_id,sp.name,sp.is_present,
-	sp.router_id,r.address,r.router_identity,cp.description,cp.user_price_minor,
+	sp.router_id,r.address,r.api_port,r.use_tls,r.router_identity,cp.description,cp.user_price_minor,
 	cp.dealer_price_minor,cp.default_prefix,cp.generation_config_json,cp.active,
 	cp.sort_order,cp.created_at,cp.updated_at
 	FROM card_packages cp
@@ -262,11 +264,11 @@ type cardPackageRowScanner interface {
 
 func scanCardPackage(row cardPackageRowScanner) (CardPackage, error) {
 	var pkg CardPackage
-	var present, active int
+	var present, active, routerUseTLS int
 	var generationConfigJSON string
 	err := row.Scan(
 		&pkg.ID, &pkg.Name, &pkg.ServiceSystem, &pkg.ServiceProfileID, &pkg.ServiceProfileName, &present,
-		&pkg.RouterID, &pkg.RouterAddress, &pkg.RouterIdentity, &pkg.Description, &pkg.UserPriceMinor,
+		&pkg.RouterID, &pkg.RouterAddress, &pkg.RouterPort, &routerUseTLS, &pkg.RouterIdentity, &pkg.Description, &pkg.UserPriceMinor,
 		&pkg.DealerPriceMinor, &pkg.DefaultPrefix, &generationConfigJSON, &active, &pkg.SortOrder,
 		&pkg.CreatedAt, &pkg.UpdatedAt,
 	)
@@ -280,6 +282,7 @@ func scanCardPackage(row cardPackageRowScanner) (CardPackage, error) {
 		pkg.GenerationConfig = map[string]any{}
 	}
 	pkg.ServiceProfilePresent = present == 1
+	pkg.RouterUseTLS = routerUseTLS == 1
 	pkg.Active = active == 1
 	return pkg, nil
 }
