@@ -1,9 +1,10 @@
 import {useEffect,useState,type FormEvent} from 'react';
 import {api} from './api';
 import HotSpotManager from './components/HotSpotManager';
+import UserManagerManager from './components/UserManagerManager';
 import {formatT,t,type Language} from './i18n';
 import {setBootstrapDirection} from './bootstrapStyles';
-import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo} from './types';
+import type {AppSettings,HealthResponse,HotSpotOverview,RouterInfo,UserManagerOverview} from './types';
 
 const defaults:AppSettings={businessName:'bt-manager',currencyCode:'YER',currencySymbol:'ر.ي',setupComplete:false};
 type Flash={kind:'success'|'danger';message:string}|null;
@@ -18,7 +19,7 @@ const pageInfo:Record<Page,{title:string;eyebrow:string;description:string}>={
  'hotspot-servers':{title:'خوادم HotSpot',eyebrow:'إدارة HotSpot',description:'عرض خوادم HotSpot وواجهاتها وملفاتها التعريفية.'},
  vouchers:{title:'دفعات الكروت والطباعة',eyebrow:'قسائم HotSpot',description:'إنشاء دفعات الدخول وضبط الرموز وتصميم الكروت وطباعتها.'},
  pos:{title:'نقطة البيع',eyebrow:'المبيعات',description:'تعريف الباقات وبيع القسائم المتوفرة ومراجعة الإيصالات.'},
- 'user-manager':{title:'User Manager',eyebrow:'إدارة RADIUS',description:'وحدة مستقلة قيد التطوير لتدعم User Manager حسب إصدار RouterOS والحزمة المتاحة.'}
+ 'user-manager':{title:'User Manager',eyebrow:'إدارة RADIUS',description:'استيراد Profiles وLimitations وعرض القيود المرتبطة بها حسب إصدار RouterOS.'}
 };
 const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:boolean}[]}[]=[
  {label:'عام',items:[{page:'dashboard',label:'نظرة عامة',icon:'bi-grid-1x2-fill'},{page:'settings',label:'الإعدادات والاتصال',icon:'bi-router'}]},
@@ -31,7 +32,7 @@ const navGroups:{label:string;items:{page:Page;label:string;icon:string;soon?:bo
  ]},
  {label:'البيع وإدارة المستخدمين',items:[
   {page:'pos',label:'نقطة البيع',icon:'bi-shop'},
-  {page:'user-manager',label:'User Manager',icon:'bi-person-gear',soon:true}
+  {page:'user-manager',label:'User Manager',icon:'bi-person-gear'}
  ]}
 ];
 const hotSpotViewByPage:Partial<Record<Page,HotSpotView>>={
@@ -46,12 +47,14 @@ export default function App(){
  const [router,setRouter]=useState({address:'192.168.88.1',port:8728,username:'admin',password:'',useTls:false});
  const [info,setInfo]=useState<RouterInfo|null>(null);
  const [hotspot,setHotspot]=useState<HotSpotOverview|null>(null);
+ const [userManagerOverview,setUserManagerOverview]=useState<UserManagerOverview|null>(null);
  const [page,setPage]=useState<Page>('dashboard');
  const [language,setLanguage]=useState<Language>(()=>{try{return localStorage.getItem('bt-manager-language')==='en'?'en':'ar'}catch{return 'ar'}});
  const [theme,setTheme]=useState<'light'|'dark'>(()=>{try{return localStorage.getItem('bt-manager-theme')==='dark'?'dark':'light'}catch{return 'light'}});
  const [fullscreen,setFullscreen]=useState(Boolean(document.fullscreenElement));
  const [testing,setTesting]=useState(false);
  const [loadingHotspot,setLoadingHotspot]=useState(false);
+ const [loadingUserManager,setLoadingUserManager]=useState(false);
  const [saving,setSaving]=useState(false);
  const [flash,setFlash]=useState<Flash>(null);
 
@@ -139,11 +142,28 @@ export default function App(){
   }catch(error){setFlash({kind:'danger',message:t(language,(error as Error).message)})}
   finally{setLoadingHotspot(false)}
  }
+ async function loadUserManager(showMessage=true){
+  if(!info){
+   setFlash({kind:'danger',message:t(language,'اختبر اتصال الراوتر من «الإعدادات والاتصال» قبل استيراد User Manager.')});
+   return;
+  }
+  setLoadingUserManager(true);if(showMessage)setFlash(null);
+  try{
+   const result=await api.syncUserManager(router);
+   setUserManagerOverview(result);
+   if(showMessage)setFlash({kind:'success',message:formatT(language,'اكتملت مزامنة User Manager: {profiles} ملفًا و{limitations} قيدًا و{relations} علاقة.',{profiles:result.sync.profileCount,limitations:result.sync.limitationCount,relations:result.sync.relationshipCount})});
+  }catch(error){setFlash({kind:'danger',message:t(language,(error as Error).message)})}
+  finally{setLoadingUserManager(false)}
+ }
  function navigate(nextPage:Page){
   setPage(nextPage);
   if(isHotSpotPage(nextPage)&&!loadingHotspot){
    if(info){void loadHotspot(false)}
    else if(!hotspot){setFlash({kind:'danger',message:t(language,'افتح «الإعدادات والاتصال» واختبر اتصال الراوتر أولًا، ثم اقرأ بيانات HotSpot.')})}
+  }
+  if(nextPage==='user-manager'&&!loadingUserManager){
+   if(info){void loadUserManager(false)}
+   else{setFlash({kind:'danger',message:t(language,'اختبر اتصال الراوتر من «الإعدادات والاتصال» قبل استيراد User Manager.')})}
   }
  }
  const setting=(key:keyof AppSettings,value:string|boolean)=>setSettings(current=>({...current,[key]:value}));
@@ -203,7 +223,7 @@ export default function App(){
 
    {view&&<>{hotspot?<HotSpotManager language={language} view={view} router={router} overview={hotspot} businessName={settings.businessName} currencyCode={settings.currencyCode} currencySymbol={settings.currencySymbol} onRefresh={()=>loadHotspot(false)} onMessage={(kind,message)=>setFlash({kind,message})}/>:<section className="panel empty-router-state"><div className="panel-icon cyan"><i className="bi bi-router"/></div><h2>{t(language,"بيانات HotSpot غير محمّلة")}</h2><p>{t(language,"اختبر اتصال الراوتر من الإعدادات أولًا، ثم اقرأ بيانات HotSpot لفتح هذا القسم.")}</p><button type="button" className="btn btn-primary" onClick={()=>navigate('settings')}>{t(language,"فتح الإعدادات والاتصال")}</button></section>}</>}
 
-   {page==='user-manager'&&<section className="panel user-manager-placeholder"><div className="panel-icon violet"><i className="bi bi-person-gear"/></div><span className="status-pill-development">{t(language,'قيد التطوير')}</span><h2>User Manager — {t(language,'وحدة مستقلة')}</h2><p>{t(language,"لم تُربط هذه الوحدة بالراوتر بعد. سننفذها عبر محول مستقل يكتشف إصدار RouterOS وحزمة User Manager المتاحة، بدل استخدام مسارات HotSpot المحلية.")}</p><div className="row g-3 mt-2"><div className="col-md-6"><div className="helper-box"><i className="bi bi-router"/><span><b>RouterOS v6</b><br/>{t(language,"التحقق من مسارات User Manager التقليدية وإمكانية تشغيل الحزمة.")}</span></div></div><div className="col-md-6"><div className="helper-box"><i className="bi bi-diagram-3"/><span><b>RouterOS v7</b><br/>{t(language,"التحقق من المسارات الجديدة وصلاحيات الحساب والمحاسبة.")}</span></div></div></div><p className="small text-secondary mt-3 mb-0">{t(language,"لن تُنشأ أي حسابات User Manager من هذه الشاشة قبل اكتمال المحول والاختبارات المطلوبة.")}</p></section>}
+   {page==='user-manager'&&<UserManagerManager language={language} overview={userManagerOverview} loading={loadingUserManager} onRefresh={()=>void loadUserManager()}/>}
 
    <footer className="page-footer"><div><span className="footer-mark">bt</span><span>bt-manager <small>· إدارة محلية لشبكات MikroTik</small></span></div><span><i className="bi bi-shield-check"/> {language==='ar'?'يعمل على جهازك':'Runs locally on your device'}</span></footer>
   </main>
