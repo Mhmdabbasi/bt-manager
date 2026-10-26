@@ -55,6 +55,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
  const [limitUptime,setLimitUptime]=useState('');
  const [generating,setGenerating]=useState(false);
  const [loadingBatch,setLoadingBatch]=useState(false);
+ const [templateSnapshotMissing,setTemplateSnapshotMissing]=useState(false);
  const [batches,setBatches]=useState<VoucherBatch[]>([]);
  const [selected,setSelected]=useState<VoucherBatchResult|null>(null);
  const [layoutKey,setLayoutKey]=useState<LayoutKey>('4x15');
@@ -154,6 +155,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
      })
     :await api.generateVouchers({router,profile,...generationOptions});
    if(result.templateSnapshot)applyTemplateSnapshot(result.templateSnapshot);
+   setTemplateSnapshotMissing(Boolean(result.batch.templateVersionId&&!result.templateSnapshot));
    setSelected(result);
    setBatches(old=>[result.batch,...old.filter(batch=>batch.id!==result.batch.id)]);
    if(result.batch.failedCount>0||Boolean(result.untrackedUsernames?.length)){
@@ -191,7 +193,9 @@ async function chooseBatch(value:string){
   try{
    const result=await api.voucherBatch(id);
    if(result.templateSnapshot)applyTemplateSnapshot(result.templateSnapshot);
-   else if(result.batch.templateVersionId)onMessage('danger',tx('تعذر استعادة إصدار قالب الطباعة التاريخي لهذه الدفعة.'));
+   const snapshotMissing=Boolean(result.batch.templateVersionId&&!result.templateSnapshot);
+   setTemplateSnapshotMissing(snapshotMissing);
+   if(snapshotMissing)onMessage('danger',tx('تعذر استعادة إصدار قالب الطباعة التاريخي لهذه الدفعة؛ تم تعطيل الطباعة لتجنب استخدام تصميم مختلف.'));
    setSelected(result);
    if(result.errorMessage)onMessage('danger',result.errorMessage);
   }catch(error){onMessage('danger',(error as Error).message)}
@@ -288,7 +292,7 @@ async function chooseBatch(value:string){
     <div className="d-flex flex-wrap gap-2 mt-3"><button type="button" className="btn btn-primary" disabled={!selectedPackage||savingTemplate||templateLoading} onClick={()=>void saveTemplate()}>{savingTemplate?tx('جارٍ الحفظ...'):tx('حفظ إصدار القالب')}</button><button type="button" className="btn btn-outline-secondary" onClick={()=>{setSelectedTemplateID('');setTemplateName('قالب جديد');setTemplateDefault(false);setTemplatePointOfSaleID('');setDesignElements(defaultDesign);setBackground('');setBackgroundName('');setBackgroundAssetId(0)}}>{tx('بدء قالب جديد')}</button><span className="form-hint align-self-center">{tx('كل عملية حفظ تنشئ إصدارًا جديدًا، وتبقى الإصدارات السابقة محفوظة.')}</span></div>
    </div>
    {!layoutFits&&<div className="alert alert-warning mt-3 no-print">{tx('مقاسات الكرت والهوامش والمسافات تتجاوز المساحة القابلة للطباعة على ورقة A4. عدّل المقاسات أو تخطيط الصفحات قبل الطباعة.')}</div>}
-   <div className="d-flex flex-wrap align-items-center gap-2 mt-3 no-print"><button type="button" className="btn btn-primary" disabled={!vouchers.length||!layoutFits} onClick={()=>window.print()}><i className="bi bi-printer ms-1"/> {tx("طباعة / حفظ PDF")}</button><span className="small text-secondary">{tx("اختر «Save as PDF / حفظ كملف PDF» من نافذة الطباعة.")}</span></div>
+   <div className="d-flex flex-wrap align-items-center gap-2 mt-3 no-print"><button type="button" className="btn btn-primary" disabled={!vouchers.length||!layoutFits||templateSnapshotMissing} onClick={()=>window.print()}><i className="bi bi-printer ms-1"/> {tx("طباعة / حفظ PDF")}</button><span className="small text-secondary">{tx("اختر «Save as PDF / حفظ كملف PDF» من نافذة الطباعة.")}</span></div>
    {selected&&(selected.batch.failedCount>0||Boolean(selected.untrackedUsernames?.length))&&<div className="alert alert-warning mt-3">{tx('لم تكتمل الدفعة بالكامل.')} {formatT(language,'حُفظت محليًا {created} من أصل {requested} قسيمة.',{created:selected.batch.createdCount,requested:selected.batch.requestedCount})} {selected.errorMessage}{selected.untrackedUsernames&&selected.untrackedUsernames.length>0&&<div className="mt-2"><b>{tx("أسماء أنشئت على الراوتر ولم تُحفظ محليًا:")}</b><div dir="ltr">{selected.untrackedUsernames.join(", ")}</div><small>{tx("لا تطبع هذه الرموز من الاستوديو قبل تسجيلها محليًا؛ فهي غير موجودة ضمن القسائم المحفوظة.")}</small></div>}</div>}
    <div className="voucher-preview-wrap mt-3"><div className="small text-secondary mb-2">{vouchers.length?formatT(language,'معاينة لأول {count} كروت — المعاينة للطباعة كاملة على ورق A4.',{count:screenPreview.length}):tx('معاينة تجريبية للقالب؛ أنشئ دفعة لعرض بيانات الدخول الفعلية.')}</div><div className="voucher-preview-grid">{screenPreview.map(voucher=><VoucherCard key={voucher.id} language={language} voucher={voucher} title={cardTitle} note={note} accent={accent} background={background} elements={designElements} cardWidthMM={cardWidthMM} cardHeightMM={cardHeightMM}/>)}</div></div>
    {!vouchers.length&&<div className="small text-secondary mt-3">{tx("لا توجد كروت ناجحة في هذه الدفعة للطباعة؛ المعاينة أعلاه تجريبية.")}</div>}
