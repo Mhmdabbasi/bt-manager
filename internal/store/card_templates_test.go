@@ -114,3 +114,45 @@ func TestSaveCardTemplateVersionCreatesImmutableVersionsAndDefault(t *testing.T)
 	var override int64
 	if err:=db.QueryRowContext(ctx,`SELECT template_id_override FROM point_of_sale_packages WHERE point_of_sale_id=? AND package_id=?`,pos.ID,packageID).Scan(&override);err!=nil||override!=posTemplate.ID { t.Fatalf("POS package override=%d err=%v",override,err) }
 }
+
+func TestGetCardTemplateVersionReturnsImmutableHistoricalDesign(t *testing.T) {
+	db, packageID, _ := setupPointOfSaleTestDB(t)
+	ctx := context.Background()
+	first, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{
+		PackageID: packageID, Name: "Historical template", IsDefault: true,
+		CardWidthMM: 50, CardHeightMM: 19.1,
+		DesignJSON: []byte(`[{"id":"username","field":"username","x":4,"y":40,"width":90,"fontSize":12,"color":"#123456","align":"center","bold":true}]`),
+		PageLayoutJSON: []byte(`{"columns":4,"rows":15,"marginMm":5,"gapMm":0}`),
+	})
+	if err != nil { t.Fatal(err) }
+	if first.LatestVersionID == nil { t.Fatal("first version ID is missing") }
+	second, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{
+		ID: first.ID, PackageID: packageID, Name: "Historical template", IsDefault: true,
+		CardWidthMM: 60, CardHeightMM: 20,
+		DesignJSON: []byte(`[{"id":"username","field":"username","x":10,"y":45,"width":80,"fontSize":14,"color":"#654321","align":"left","bold":false}]`),
+		PageLayoutJSON: []byte(`{"columns":3,"rows":15,"marginMm":4,"gapMm":1}`),
+	})
+	if err != nil { t.Fatal(err) }
+	if second.LatestVersionID == nil || *second.LatestVersionID == *first.LatestVersionID { t.Fatal("second save did not create a new version") }
+	historical, err := db.GetCardTemplateVersion(ctx, *first.LatestVersionID)
+	if err != nil { t.Fatal(err) }
+	if historical.ID != first.ID || historical.VersionNumber != 1 || historical.CardWidthMM != 50 { t.Fatalf("unexpected historical version: %+v", historical) }
+	if string(historical.DesignJSON) != string(first.DesignJSON) || string(historical.PageLayoutJSON) != string(first.PageLayoutJSON) { t.Fatalf("historical design/layout changed: %+v", historical) }
+	if _, err := db.GetCardTemplateVersion(ctx, 999999); !errors.Is(err, ErrCardTemplateVersionNotFound) { t.Fatalf("missing version error=%v", err) }
+}
+
+func TestResolveCardTemplateVersionByIDValidatesPackageAndPointOfSaleScope(t *testing.T) {
+	db, packageID, _ := setupPointOfSaleTestDB(t)
+	ctx := context.Background()
+	global, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{PackageID:packageID,Name:"Global template",IsDefault:true,CardWidthMM:50,CardHeightMM:19.1,DesignJSON:[]byte(`[]`),PageLayoutJSON:[]byte(`{}`)})
+	if err != nil { t.Fatal(err) }
+	if global.LatestVersionID == nil { t.Fatal("global version ID is missing") }
+	versionID, err := db.ResolveCardTemplateVersionByID(ctx, packageID, 0, global.ID)
+	if err != nil || versionID != *global.LatestVersionID { t.Fatalf("global resolution: version=%d err=%v",versionID,err) }
+	pos, err := db.CreatePointOfSale(ctx, PointOfSaleInput{Code:"TEMPLATE-VALIDATION",Name:"Template validation POS",Active:true})
+	if err != nil { t.Fatal(err) }
+	posTemplate, err := db.SaveCardTemplateVersion(ctx, SaveCardTemplateInput{PackageID:packageID,PointOfSaleID:pos.ID,Name:"POS template",CardWidthMM:50,CardHeightMM:19.1,DesignJSON:[]byte(`[]`),PageLayoutJSON:[]byte(`{}`)})
+	if err != nil { t.Fatal(err) }
+	if _, err := db.ResolveCardTemplateVersionByID(ctx, packageID, 0, posTemplate.ID); !errors.Is(err, ErrCardTemplateVersionNotFound) { t.Fatalf("wrong POS scope error=%v",err) }
+	if _, err := db.ResolveCardTemplateVersionByID(ctx, packageID+999, pos.ID, global.ID); !errors.Is(err, ErrCardTemplateVersionNotFound) { t.Fatalf("wrong package error=%v",err) }
+}
