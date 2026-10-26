@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"context"
 	"database/sql"
 	"errors"
