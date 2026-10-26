@@ -103,7 +103,8 @@ export default function VoucherStudio({language,router,profiles,servers,business
   void Promise.all([api.cardTemplates(selectedPackage.id),api.designAssets()]).then(([result,assetsResult])=>{
    if(!active)return;
    setTemplates(result.templates);
-   const item=result.templates.find(template=>template.isDefault&&template.scopeKind==='global')||result.templates.find(template=>template.scopeKind==='global');
+   const pointTemplate=pointOfSaleID?result.templates.find(template=>template.scopeKind==='point_of_sale'&&template.pointOfSaleId===Number(pointOfSaleID)):undefined;
+   const item=pointTemplate||result.templates.find(template=>template.isDefault&&template.scopeKind==='global')||result.templates.find(template=>template.scopeKind==='global');
    if(!item){setSelectedTemplateID('');setTemplateName('القالب الافتراضي');setTemplateDefault(true);setTemplatePointOfSaleID('');setDesignElements(defaultDesign);setCardWidthMM(50);setCardHeightMM(19.1);setPageMarginMM(5);setPageGapMM(0);setBackgroundAssetId(0);setBackground('');setBackgroundName('');setLayoutKey('4x15');return}
    setSelectedTemplateID(String(item.id));setTemplateName(item.name);setTemplateDefault(item.isDefault);setTemplatePointOfSaleID(item.pointOfSaleId?String(item.pointOfSaleId):'');
    setCardWidthMM(item.cardWidthMm);setCardHeightMM(item.cardHeightMm);
@@ -115,7 +116,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    setBackground(asset?'/api/design-assets/'+asset.assetKey:'');setBackgroundName(asset?.originalName||'');
   }).catch(error=>{if(active)onMessage('danger',(error as Error).message)}).finally(()=>{if(active)setTemplateLoading(false)});
   return ()=>{active=false};
- },[selectedPackage?.id]);
+ },[selectedPackage?.id,pointOfSaleID]);
  const vouchers=selected?.vouchers??[];
  const sheets=useMemo(()=>chunk(vouchers,layout.capacity),[vouchers,layout.capacity]);
  const sampleVoucher:Voucher={id:0,batchId:0,username:'BT-12345678',password:passwordMode==='none'?'':'1234',profileName:selectedPackage?.serviceProfileName||profile||'Profile',serverName:'all',limitUptime:limitUptime,status:'available',createdAt:''};
