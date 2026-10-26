@@ -15,6 +15,7 @@ import (
 type generatePackagedVouchersRequest struct {
 	Router             routerosadapter.TestRequest `json:"router"`
 	PackageID          int64                       `json:"packageId"`
+	TemplateID          *int64                      `json:"templateId,omitempty"`
 	PointOfSaleID      *int64                      `json:"pointOfSaleId"`
 	AllowWithoutTemplate bool                      `json:"allowWithoutTemplate"`
 	Prefix             string                      `json:"prefix"`
@@ -146,7 +147,23 @@ func (s *Server) generatePackagedVouchers(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	templateVersionID, hasTemplate, err := s.app.DB.ResolveCardTemplateVersion(ctx, pkg.ID, pointOfSaleID, templateOverrideID)
+	var templateVersionID int64
+hasTemplate := false
+if req.TemplateID != nil {
+	templateVersionID, err = s.app.DB.ResolveCardTemplateVersionByID(ctx, pkg.ID, pointOfSaleID, *req.TemplateID)
+	if errors.Is(err, store.ErrCardTemplateVersionNotFound) {
+		writeError(w, http.StatusConflict, "selected_template_unavailable", "القالب المحدد غير نشط أو لا يتوافق مع الباقة ونقطة البيع")
+		return
+	}
+	if err != nil {
+		s.logger.Error("resolve selected card template failed", "templateId", *req.TemplateID, "error", err)
+		writeError(w, http.StatusInternalServerError, "card_template_resolve_failed", "تعذر تحديد نسخة قالب الطباعة")
+		return
+	}
+	hasTemplate = true
+} else {
+	templateVersionID, hasTemplate, err = s.app.DB.ResolveCardTemplateVersion(ctx, pkg.ID, pointOfSaleID, templateOverrideID)
+}
 	if errors.Is(err, store.ErrCardTemplateVersionNotFound) {
 		writeError(w, http.StatusConflict, "point_of_sale_template_version_missing", "قالب نقطة البيع المحدد لا يحتوي على نسخة محفوظة؛ حدّث القالب أو أزل التجاوز قبل التوليد")
 		return
