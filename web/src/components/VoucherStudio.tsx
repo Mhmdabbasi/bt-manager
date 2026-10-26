@@ -153,6 +153,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
       allowWithoutTemplate,...generationOptions
      })
     :await api.generateVouchers({router,profile,...generationOptions});
+   if(result.templateSnapshot)applyTemplateSnapshot(result.templateSnapshot);
    setSelected(result);
    setBatches(old=>[result.batch,...old.filter(batch=>batch.id!==result.batch.id)]);
    if(result.batch.failedCount>0||Boolean(result.untrackedUsernames?.length)){
