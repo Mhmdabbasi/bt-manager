@@ -274,7 +274,15 @@ if req.TemplateID != nil {
 	s.logger.Info("packaged HotSpot voucher batch finished", "batchReference", batch.Reference,
 		"packageId", pkg.ID, "pointOfSaleId", pointOfSaleID, "requested", batch.RequestedCount,
 		"created", batch.CreatedCount, "failed", batch.FailedCount, "untracked", len(untracked))
-	writeJSON(w, http.StatusOK, generateVouchersResponse{
-		Batch: batch, Vouchers: vouchers, UntrackedUsernames: untracked, ErrorMessage: errorMessage,
-	})
+	response := generateVouchersResponse{Batch: batch, Vouchers: vouchers, UntrackedUsernames: untracked, ErrorMessage: errorMessage}
+if batch.TemplateVersionID != nil {
+	template, templateErr := s.app.DB.GetCardTemplateVersion(finalizeCtx, *batch.TemplateVersionID)
+	if templateErr != nil {
+		s.logger.Error("read immutable template for generated voucher batch failed", "batchId", batch.ID, "templateVersionId", *batch.TemplateVersionID, "error", templateErr)
+		writeError(w, http.StatusInternalServerError, "voucher_template_snapshot_read_failed", "تم إنشاء الدفعة لكن تعذر قراءة إصدار قالب الطباعة المرتبط بها")
+		return
+	}
+	response.TemplateSnapshot = &template
+}
+writeJSON(w, http.StatusOK, response)
 }
