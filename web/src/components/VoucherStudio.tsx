@@ -16,7 +16,7 @@ type Props={
  onRefresh:()=>Promise<void>;
  onMessage:(kind:FlashKind,message:string)=>void;
 };
-type LayoutKey='4x15'|'3x20'|'3x15';
+type LayoutKey='4x15'|'3x20'|'3x15'|'custom';
 const layouts:Record<LayoutKey,{label:string;columns:number;rows:number;capacity:number}>={
  '4x15':{label:'60 بطاقة — 4 أعمدة × 15 صفًا',columns:4,rows:15,capacity:60},
  '3x20':{label:'60 بطاقة — 3 أعمدة × 20 صفًا',columns:3,rows:20,capacity:60},
@@ -58,6 +58,8 @@ export default function VoucherStudio({language,router,profiles,servers,business
  const [batches,setBatches]=useState<VoucherBatch[]>([]);
  const [selected,setSelected]=useState<VoucherBatchResult|null>(null);
  const [layoutKey,setLayoutKey]=useState<LayoutKey>('4x15');
+ const [customColumns,setCustomColumns]=useState(4);
+ const [customRows,setCustomRows]=useState(15);
  const [cardTitle,setCardTitle]=useState(businessName||'HotSpot');
  const [note,setNote]=useState('');
  const [accent,setAccent]=useState('#147f9f');
@@ -94,7 +96,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
  },[router.address,router.port,router.useTls]);
  useEffect(()=>{if(!profile&&profiles.length)setProfile(profiles[0].name)},[profiles,profile]);
 
- const layout=layouts[layoutKey];
+ const layout=layoutKey==='custom'?{label:`${customColumns} × ${customRows}`,columns:customColumns,rows:customRows,capacity:customColumns*customRows}:layouts[layoutKey];
  const selectedPackage=cardPackages.find(item=>item.id===Number(packageID))??null;
  useEffect(()=>{
   let active=true;
@@ -109,8 +111,9 @@ export default function VoucherStudio({language,router,profiles,servers,business
    setSelectedTemplateID(String(item.id));setTemplateName(item.name);setTemplateDefault(item.isDefault);setTemplatePointOfSaleID(item.pointOfSaleId?String(item.pointOfSaleId):'');
    setCardWidthMM(item.cardWidthMm);setCardHeightMM(item.cardHeightMm);
    setDesignElements(Array.isArray(item.design)&&item.design.length?item.design:defaultDesign);
-   const layoutKeyFound=(Object.keys(layouts) as LayoutKey[]).find(key=>layouts[key].columns===item.pageLayout?.columns&&layouts[key].rows===item.pageLayout?.rows);
-   setLayoutKey(layoutKeyFound||'4x15');setPageMarginMM(item.pageLayout?.marginMm??5);setPageGapMM(item.pageLayout?.gapMm??0);
+   const layoutKeyFound=(Object.keys(layouts) as Exclude<LayoutKey,'custom'>[]).find(key=>layouts[key].columns===item.pageLayout?.columns&&layouts[key].rows===item.pageLayout?.rows);
+   const cols=Math.max(1,Math.min(10,item.pageLayout?.columns??4)),rws=Math.max(1,Math.min(40,item.pageLayout?.rows??15));
+   setCustomColumns(cols);setCustomRows(rws);setLayoutKey(layoutKeyFound||'custom');setPageMarginMM(item.pageLayout?.marginMm??5);setPageGapMM(item.pageLayout?.gapMm??0);
    setBackgroundAssetId(item.backgroundAssetId||0);
    const asset=assetsResult.assets.find(assetItem=>assetItem.id===item.backgroundAssetId);
    setBackground(asset?'/api/design-assets/'+asset.assetKey:'');setBackgroundName(asset?.originalName||'');
@@ -241,7 +244,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
    <div className="row g-3">
     <div className="col-md-6"><label className="form-label" htmlFor="cardTitle">{tx("اسم الشبكة على الكرت")}</label><input id="cardTitle" className="form-control" value={cardTitle} onChange={event=>setCardTitle(event.target.value)} maxLength={80}/></div>
     <div className="col-md-6"><label className="form-label" htmlFor="cardNote">{tx("عبارة إضافية (اختيارية)")}</label><input id="cardNote" className="form-control" value={note} onChange={event=>setNote(event.target.value)} maxLength={80} placeholder={tx("للدعم أو التواصل...")}/></div>
-    <div className="col-md-6"><label className="form-label" htmlFor="cardLayout">{tx("تخطيط ورقة A4")}</label><select id="cardLayout" className="form-select form-control" value={layoutKey} onChange={event=>setLayoutKey(event.target.value as LayoutKey)}>{Object.entries(layouts).map(([key,value])=><option key={key} value={key}>{tx(value.label)}</option>)}</select></div>
+    <div className="col-md-6"><label className="form-label" htmlFor="cardLayout">{tx("تخطيط ورقة A4")}</label><select id="cardLayout" className="form-select form-control" value={layoutKey} onChange={event=>setLayoutKey(event.target.value as LayoutKey)}>{Object.entries(layouts).map(([key,value])=><option key={key} value={key}>{tx(value.label)}</option>)}{layoutKey==='custom'&&<option value="custom">{tx('تخطيط مخصص','Custom layout')} — {customColumns} × {customRows}</option>}</select></div>
     <div className="col-md-3"><label className="form-label" htmlFor="cardAccent">{tx("لون الهوية")}</label><input id="cardAccent" className="form-control form-control-color" type="color" value={accent} onChange={event=>setAccent(event.target.value)} title={tx("لون الهوية")}/></div>
     <div className="col-md-3"><label className="form-label" htmlFor="cardBackground">{tx("خلفية مخصصة")}</label><input id="cardBackground" className="form-control" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleBackground}/>{backgroundName&&<div className="form-hint">{backgroundName} <button type="button" className="btn btn-sm btn-link p-0" onClick={()=>{setBackground('');setBackgroundName('');setBackgroundAssetId(0)}}>{tx("إزالة")}</button></div>}</div>
    </div>
