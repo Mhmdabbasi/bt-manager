@@ -15,6 +15,7 @@ type Props={
  businessName:string;
  onRefresh:()=>Promise<void>;
  onMessage:(kind:FlashKind,message:string)=>void;
+ onOpenCardStudio:()=>void;
 };
 type LayoutKey='4x15'|'3x20'|'3x15'|'custom';
 const layouts:Record<Exclude<LayoutKey,'custom'>,{label:string;columns:number;rows:number;capacity:number}>={
@@ -36,7 +37,7 @@ function VoucherCard({language,voucher,title,note,accent,background,elements,car
  return <article className="voucher-card voucher-card-canvas" style={style}>{elements.filter(element=>element.visible!==false&&values[element.field]!=='').map(element=><span key={element.id} className={'voucher-canvas-element voucher-field-'+element.field} dir={element.field==='username'||element.field==='password'?'ltr':undefined} style={{left:element.x+'%',top:element.y+'%',width:element.width+'%',fontSize:element.fontSize+'pt',color:element.color,textAlign:element.align,fontWeight:element.bold?800:400}}>{values[element.field]}</span>)}</article>;
 }
 
-export default function VoucherStudio({language,router,profiles,servers,businessName,onRefresh,onMessage}:Props){
+export default function VoucherStudio({language,router,profiles,servers,businessName,onRefresh,onMessage,onOpenCardStudio}:Props){
  const tx=(text:string)=>t(language,text);
  const [prefix,setPrefix]=useState('');
  const [count,setCount]=useState(60);
@@ -268,14 +269,25 @@ async function chooseBatch(value:string){
 
   {(selected||selectedPackage)&&<div className="voucher-print-settings">
    <div className="hotspot-section-title mt-4"><h3>{tx("استوديو تصميم الكروت")}</h3><span>{vouchers.length} {tx('كرت متاح')}</span></div>
-   <div className="row g-3">
+   <div className="d-flex flex-wrap align-items-end gap-2 mt-3 mb-3 no-print">
+    <div className="flex-grow-1" style={{minWidth:'240px'}}>
+     <label className="form-label" htmlFor="generationTemplate">{tx('قالب الطباعة المستخدم')}</label>
+     <select id="generationTemplate" className="form-select" value={selectedTemplateID} disabled={templateLoading||!selectedPackage} onChange={event=>{const item=templates.find(template=>template.id===Number(event.target.value));if(item)applyTemplateSnapshot(item);}}>
+      <option value="">{selectedPackage?tx('اختر قالبًا محفوظًا'):tx('اختر الباقة أولًا لعرض قوالبها')}</option>
+      {templates.map(item=><option key={item.id} value={item.id}>{item.name}{item.isDefault?' — '+tx('افتراضي'):''} · v{item.versionNumber}</option>)}
+     </select>
+     <div className="form-hint">{tx('تتم إدارة التصميم والعناصر والخلفية من استوديو تصميم الكروت المستقل.')}</div>
+    </div>
+    <button type="button" className="btn btn-outline-primary" onClick={onOpenCardStudio}><i className="bi bi-palette2 ms-1"/> {tx('فتح استوديو التصميم')}</button>
+   </div>
+   <div className="row g-3" style={{display:'none'}}>
     <div className="col-md-6"><label className="form-label" htmlFor="cardTitle">{tx("اسم الشبكة على الكرت")}</label><input id="cardTitle" className="form-control" value={cardTitle} onChange={event=>setCardTitle(event.target.value)} maxLength={80}/></div>
     <div className="col-md-6"><label className="form-label" htmlFor="cardNote">{tx("عبارة إضافية (اختيارية)")}</label><input id="cardNote" className="form-control" value={note} onChange={event=>setNote(event.target.value)} maxLength={80} placeholder={tx("للدعم أو التواصل...")}/></div>
     <div className="col-md-6"><label className="form-label" htmlFor="cardLayout">{tx("تخطيط ورقة A4")}</label><select id="cardLayout" className="form-select form-control" value={layoutKey} onChange={event=>setLayoutKey(event.target.value as LayoutKey)}>{Object.entries(layouts).map(([key,value])=><option key={key} value={key}>{tx(value.label)}</option>)}<option value="custom">{tx('تخطيط مخصص','Custom layout')} — {customColumns} × {customRows}</option></select></div>
     <div className="col-md-3"><label className="form-label" htmlFor="cardAccent">{tx("لون الهوية")}</label><input id="cardAccent" className="form-control form-control-color" type="color" value={accent} onChange={event=>setAccent(event.target.value)} title={tx("لون الهوية")}/></div>
     <div className="col-md-3"><label className="form-label" htmlFor="cardBackground">{tx("خلفية مخصصة")}</label><input id="cardBackground" className="form-control" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleBackground}/>{backgroundName&&<div className="form-hint">{backgroundName} <button type="button" className="btn btn-sm btn-link p-0" onClick={()=>{setBackground('');setBackgroundName('');setBackgroundAssetId(0)}}>{tx("إزالة")}</button></div>}</div>
    </div>
-   <div className="voucher-design-workbench mt-4 no-print">
+   <div className="voucher-design-workbench mt-4 no-print" style={{display:'none'}}>
     <div className="hotspot-section-title"><h4>{tx('محرر عناصر الكرت')}</h4><span>{tx('إعدادات القالب')}</span></div>
     <div className="row g-3 mt-1">
      <div className="col-md-6"><label className="form-label" htmlFor="templateLoad">{tx('القوالب المحفوظة')}</label><select id="templateLoad" className="form-select" value={selectedTemplateID} disabled={templateLoading} onChange={event=>{const item=templates.find(template=>template.id===Number(event.target.value));if(!item){setSelectedTemplateID('');setTemplateName('قالب جديد');setDesignElements(defaultDesign);return}setSelectedTemplateID(String(item.id));setTemplateName(item.name);setTemplateDefault(item.isDefault);setTemplatePointOfSaleID(item.pointOfSaleId?String(item.pointOfSaleId):'');setCardWidthMM(item.cardWidthMm);setCardHeightMM(item.cardHeightMm);setDesignElements(Array.isArray(item.design)&&item.design.length?item.design:defaultDesign);const matchingLayout=(Object.keys(layouts) as Exclude<LayoutKey,'custom'>[]).find(key=>layouts[key].columns===item.pageLayout?.columns&&layouts[key].rows===item.pageLayout?.rows);const cols=Math.max(1,Math.min(10,item.pageLayout?.columns??4));const rows=Math.max(1,Math.min(40,item.pageLayout?.rows??15));setCustomColumns(cols);setCustomRows(rows);setLayoutKey(matchingLayout||'custom');setPageMarginMM(item.pageLayout?.marginMm??5);setPageGapMM(item.pageLayout?.gapMm??0);setBackgroundAssetId(item.backgroundAssetId||0);void api.designAssets().then(result=>{const asset=result.assets.find(a=>a.id===item.backgroundAssetId);setBackground(asset?'/api/design-assets/'+asset.assetKey:'');setBackgroundName(asset?.originalName||'')}).catch(error=>onMessage('danger',(error as Error).message))}}><option value="">{tx('قالب جديد')}</option>{templates.map(item=><option key={item.id} value={item.id}>{item.name}{item.isDefault?' — '+tx('افتراضي'):''} · v{item.versionNumber}</option>)}</select></div>
