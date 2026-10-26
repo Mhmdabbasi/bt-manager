@@ -149,6 +149,7 @@ export default function VoucherStudio({language,router,profiles,servers,business
     ?await api.generatePackagedVouchers({
       router,packageId:selectedPackage.id,
       ...(pointOfSaleID?{pointOfSaleId:Number(pointOfSaleID)}:{}),
+      ...(selectedTemplateID?{templateId:Number(selectedTemplateID)}:{}),
       allowWithoutTemplate,...generationOptions
      })
     :await api.generateVouchers({router,profile,...generationOptions});
@@ -165,12 +166,31 @@ export default function VoucherStudio({language,router,profiles,servers,business
   }finally{setGenerating(false)}
  }
 
- async function chooseBatch(value:string){
+ function applyTemplateSnapshot(item:CardTemplate){
+  setSelectedTemplateID(String(item.id));
+  setTemplateName(item.name);
+  setTemplateDefault(item.isDefault);
+  setTemplatePointOfSaleID(item.pointOfSaleId?String(item.pointOfSaleId):'');
+  setCardWidthMM(item.cardWidthMm);
+  setCardHeightMM(item.cardHeightMm);
+  setDesignElements(Array.isArray(item.design)&&item.design.length?item.design:defaultDesign);
+  const match=(Object.keys(layouts) as Exclude<LayoutKey,'custom'>[]).find(key=>layouts[key].columns===item.pageLayout?.columns&&layouts[key].rows===item.pageLayout?.rows);
+  const cols=Math.max(1,Math.min(10,item.pageLayout?.columns??4));
+  const rows=Math.max(1,Math.min(40,item.pageLayout?.rows??15));
+  setCustomColumns(cols);setCustomRows(rows);setLayoutKey(match||'custom');
+  setPageMarginMM(item.pageLayout?.marginMm??5);setPageGapMM(item.pageLayout?.gapMm??0);
+  setBackgroundAssetId(item.backgroundAssetId||0);
+  void api.designAssets().then(result=>{const asset=result.assets.find(entry=>entry.id===item.backgroundAssetId);setBackground(asset?'/api/design-assets/'+asset.assetKey:'');setBackgroundName(asset?.originalName||'')}).catch(error=>onMessage('danger',(error as Error).message));
+ }
+
+async function chooseBatch(value:string){
   const id=Number(value);
   if(!id)return;
   setLoadingBatch(true);
   try{
    const result=await api.voucherBatch(id);
+   if(result.templateSnapshot)applyTemplateSnapshot(result.templateSnapshot);
+   else if(result.batch.templateVersionId)onMessage('danger',tx('تعذر استعادة إصدار قالب الطباعة التاريخي لهذه الدفعة.'));
    setSelected(result);
    if(result.errorMessage)onMessage('danger',result.errorMessage);
   }catch(error){onMessage('danger',(error as Error).message)}
