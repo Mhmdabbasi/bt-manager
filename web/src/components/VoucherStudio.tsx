@@ -32,7 +32,7 @@ function chunk<T>(items:T[],size:number):T[][]{
 function VoucherCard({language,voucher,title,note,accent,background,elements,cardWidthMM,cardHeightMM}:{language:Language;voucher:Voucher;title:string;note:string;accent:string;background:string;elements:CardTemplateElement[];cardWidthMM:number;cardHeightMM:number}){
  const tx=(text:string)=>t(language,text);
  const values:Record<CardTemplateElement['field'],string>={title:title||'HotSpot',usernameLabel:tx('اسم المستخدم / رمز الدخول'),username:voucher.username,passwordLabel:tx('كلمة المرور'),password:voucher.password||'',profile:voucher.profileName,uptime:voucher.limitUptime?tx('الوقت: ')+voucher.limitUptime:'',note};
- const style={'--voucher-accent':accent,aspectRatio:cardWidthMM+'/'+cardHeightMM,backgroundImage:background?'linear-gradient(125deg,rgba(255,255,255,.84),rgba(240,249,251,.72)),url('+background+')':undefined} as CSSProperties;
+ const style={'--voucher-accent':accent,aspectRatio:cardWidthMM+'/'+cardHeightMM,backgroundImage:background?'url('+background+')':undefined} as CSSProperties;
  return <article className="voucher-card voucher-card-canvas" style={style}>{elements.filter(element=>element.visible!==false&&values[element.field]!=='').map(element=><span key={element.id} className={'voucher-canvas-element voucher-field-'+element.field} dir={element.field==='username'||element.field==='password'?'ltr':undefined} style={{left:element.x+'%',top:element.y+'%',width:element.width+'%',fontSize:element.fontSize+'pt',color:element.color,textAlign:element.align,fontWeight:element.bold?800:400}}>{values[element.field]}</span>)}</article>;
 }
 
