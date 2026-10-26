@@ -96,6 +96,7 @@ export interface Voucher {
 export interface VoucherBatchResult {
   batch: VoucherBatch;
   vouchers: Voucher[];
+  templateSnapshot?: CardTemplate;
   untrackedUsernames?: string[];
   errorMessage?: string;
 }
