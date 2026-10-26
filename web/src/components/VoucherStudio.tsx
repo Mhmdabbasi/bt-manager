@@ -17,7 +17,7 @@ type Props={
  onMessage:(kind:FlashKind,message:string)=>void;
 };
 type LayoutKey='4x15'|'3x20'|'3x15'|'custom';
-const layouts:Record<LayoutKey,{label:string;columns:number;rows:number;capacity:number}>={
+const layouts:Record<Exclude<LayoutKey,'custom'>,{label:string;columns:number;rows:number;capacity:number}>={
  '4x15':{label:'60 بطاقة — 4 أعمدة × 15 صفًا',columns:4,rows:15,capacity:60},
  '3x20':{label:'60 بطاقة — 3 أعمدة × 20 صفًا',columns:3,rows:20,capacity:60},
  '3x15':{label:'45 بطاقة — 3 أعمدة × 15 صفًا',columns:3,rows:15,capacity:45},
@@ -102,11 +102,13 @@ export default function VoucherStudio({language,router,profiles,servers,business
   let active=true;
   if(!selectedPackage){setTemplates([]);setSelectedTemplateID('');return ()=>{active=false}};
   setTemplateLoading(true);
-  void Promise.all([api.cardTemplates(selectedPackage.id),api.designAssets()]).then(([result,assetsResult])=>{
+  void Promise.all([api.cardTemplates(selectedPackage.id),api.designAssets(),pointOfSaleID?api.pointOfSalePackages(Number(pointOfSaleID),false):Promise.resolve(null)]).then(([result,assetsResult,posPackagesResult])=>{
    if(!active)return;
    setTemplates(result.templates);
-   const pointTemplate=pointOfSaleID?result.templates.find(template=>template.scopeKind==='point_of_sale'&&template.pointOfSaleId===Number(pointOfSaleID)):undefined;
-   const item=pointTemplate||result.templates.find(template=>template.isDefault&&template.scopeKind==='global')||result.templates.find(template=>template.scopeKind==='global');
+   const pointPackageRule=posPackagesResult?.packages.find(rule=>rule.packageId===selectedPackage.id&&rule.isEnabled);
+   const overriddenTemplate=pointPackageRule?.templateIdOverride?result.templates.find(template=>template.id===pointPackageRule.templateIdOverride&&template.active&&template.scopeKind==='point_of_sale'&&template.pointOfSaleId===Number(pointOfSaleID)):undefined;
+   const pointTemplate=pointOfSaleID?result.templates.find(template=>template.active&&template.scopeKind==='point_of_sale'&&template.pointOfSaleId===Number(pointOfSaleID)):undefined;
+   const item=overriddenTemplate||pointTemplate||result.templates.find(template=>template.active&&template.isDefault&&template.scopeKind==='global')||result.templates.find(template=>template.active&&template.scopeKind==='global');
    if(!item){setSelectedTemplateID('');setTemplateName('القالب الافتراضي');setTemplateDefault(true);setTemplatePointOfSaleID('');setDesignElements(defaultDesign);setCardWidthMM(50);setCardHeightMM(19.1);setPageMarginMM(5);setPageGapMM(0);setBackgroundAssetId(0);setBackground('');setBackgroundName('');setLayoutKey('4x15');return}
    setSelectedTemplateID(String(item.id));setTemplateName(item.name);setTemplateDefault(item.isDefault);setTemplatePointOfSaleID(item.pointOfSaleId?String(item.pointOfSaleId):'');
    setCardWidthMM(item.cardWidthMm);setCardHeightMM(item.cardHeightMm);
