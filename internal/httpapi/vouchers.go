@@ -31,6 +31,7 @@ type generateVouchersRequest struct {
 
 type generateVouchersResponse struct {
 	Batch        store.VoucherBatch `json:"batch"`
+	TemplateSnapshot *store.CardTemplateRecord `json:"templateSnapshot,omitempty"`
 	Vouchers     []store.Voucher    `json:"vouchers"`
 	UntrackedUsernames []string    `json:"untrackedUsernames,omitempty"`
 	ErrorMessage string             `json:"errorMessage,omitempty"`
@@ -157,7 +158,17 @@ func (s *Server) getVoucherBatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "voucher_cards_read_failed", "تعذر قراءة كروت الدفعة")
 		return
 	}
-	writeJSON(w, http.StatusOK, generateVouchersResponse{Batch: batch, Vouchers: vouchers})
+	response := generateVouchersResponse{Batch: batch, Vouchers: vouchers}
+if batch.TemplateVersionID != nil {
+	template, templateErr := s.app.DB.GetCardTemplateVersion(r.Context(), *batch.TemplateVersionID)
+	if templateErr != nil {
+		s.logger.Error("read immutable template for voucher batch failed", "batchId", batch.ID, "templateVersionId", *batch.TemplateVersionID, "error", templateErr)
+		writeError(w, http.StatusInternalServerError, "voucher_template_snapshot_read_failed", "تعذر استعادة إصدار قالب الطباعة المرتبط بهذه الدفعة")
+		return
+	}
+	response.TemplateSnapshot = &template
+}
+writeJSON(w, http.StatusOK, response)
 }
 
 func newVoucherBatchReference() (string, error) {
