@@ -18,6 +18,7 @@ type Props={
  view?:View;
  onRefresh:()=>Promise<void>;
  onMessage:(kind:FlashKind,message:string)=>void;
+ onOpenCardStudio:()=>void;
 };
 
 type UserForm={name:string;password:string;profile:string;server:string;limitUptime:string;comment:string};
@@ -25,7 +26,7 @@ type ProfileForm={name:string;rateLimit:string;sharedUsers:string;sessionTimeout
 const emptyUser:UserForm={name:'',password:'',profile:'default',server:'all',limitUptime:'',comment:''};
 const emptyProfile:ProfileForm={name:'',rateLimit:'',sharedUsers:'1',sessionTimeout:'',idleTimeout:''};
 
-export default function HotSpotManager({language,router,overview,businessName,currencyCode,currencySymbol,view='all',onRefresh,onMessage}:Props){
+export default function HotSpotManager({language,router,overview,businessName,currencyCode,currencySymbol,view='all',onRefresh,onMessage,onOpenCardStudio}:Props){
  const tx=(text:string)=>t(language,text);
  const [userForm,setUserForm]=useState<UserForm>(emptyUser);
  const [editingUserId,setEditingUserId]=useState('');
@@ -110,7 +111,7 @@ export default function HotSpotManager({language,router,overview,businessName,cu
    {overview.truncated&&<p className="small text-secondary mt-3 mb-0">{formatT(language,"تظهر معاينة لأول {limit} عنصر من كل قائمة؛ الأعداد أعلاه تمثل العدد الكامل على الراوتر.",{limit:overview.previewLimit})}</p>}
   </div>
 
-  {(view==='all'||view==='vouchers')&&<VoucherStudio language={language} router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage}/>}
+  {(view==='all'||view==='vouchers')&&<VoucherStudio language={language} router={router} profiles={overview.profiles} servers={overview.servers} businessName={businessName} onRefresh={onRefresh} onMessage={onMessage} onOpenCardStudio={onOpenCardStudio}/>}
   {(view==='all'||view==='pos')&&<POSPanel language={language} profiles={overview.profiles} servers={overview.servers} currencyCode={currencyCode} currencySymbol={currencySymbol} onMessage={onMessage}/>}
 
   {(view==='all'||view==='users')&&(<section className="hotspot-management-section">
