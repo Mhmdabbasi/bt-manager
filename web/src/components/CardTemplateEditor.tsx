@@ -1,6 +1,6 @@
 import {useEffect,useState,type ChangeEvent,type FormEvent} from 'react';
 import {api} from '../api';
-import type {CardPackage,CardTemplate,CardTemplateElement,PointOfSale,DesignAsset} from '../types';
+import type {CardPackage,CardTemplate,CardTemplateElement,PointOfSale} from '../types';
 import type {Language} from '../i18n';
 
 type Props={language:Language;template:CardTemplate|null;packages:CardPackage[];points:PointOfSale[];onCancel:()=>void;onSaved:(message:string)=>void;onMessage:(kind:'success'|'danger',message:string)=>void};
